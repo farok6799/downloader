@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-multipart
+websockets
+yt-dlp
+telethon
+pillow
+ffmpeg-python
+httpx
+aiofiles
