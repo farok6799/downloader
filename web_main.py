@@ -638,25 +638,29 @@ async def convert_image(
     output_format: str = Form(...)
 ):
     if not PIL_AVAILABLE:
-        raise HTTPException(status_code=501, detail="مكتبة Pillow غير مثبتة على الخادم.")
+        raise HTTPException(status_code=501, detail="مكتبة Pillow غير مثبتة على الخادم لهذه الميزة.")
 
-    temp_dir = "temp_uploads"
-    os.makedirs(temp_dir, exist_ok=True)
-    input_path = os.path.join(temp_dir, file.filename)
-    
-    base_name = os.path.splitext(file.filename)[0]
-    output_filename = f"{base_name}.{output_format.lower()}"
-    output_path = os.path.join(temp_dir, output_filename)
-
-    with open(input_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-
-    # لا يمكننا استخدام worker هنا لأنه سيعيد الاستجابة قبل انتهاء التحويل
-    # سنجري التحويل مباشرة وننتظره
     try:
-        converter = ImageConverterWorker(input_path, output_path, output_format)
-        converter.run() # تشغيل مباشر في نفس الخيط
-        return FileResponse(path=output_path, media_type=f'image/{output_format.lower()}', filename=output_filename)
+        # --- الحل الجذري: معالجة الصورة بالكامل في الذاكرة ---
+        # 1. قراءة الصورة المرفوعة مباشرة في الذاكرة
+        contents = await file.read()
+        from io import BytesIO
+        from PIL import Image
+
+        # 2. فتح الصورة من بيانات الذاكرة
+        with Image.open(BytesIO(contents)) as img:
+            output_buffer = BytesIO()
+            
+            # 3. استخدام نفس منطق التحويل من ImageConverterWorker ولكن على الذاكرة
+            # (هذا يلغي الحاجة إلى ImageConverterWorker هنا)
+            img.save(output_buffer, format=output_format.upper())
+            output_buffer.seek(0) # العودة إلى بداية المخزن المؤقت للقراءة منه
+
+        # 4. إرجاع الصورة كـ StreamingResponse مباشرة من الذاكرة
+        output_filename = f"{os.path.splitext(file.filename)[0]}.{output_format.lower()}"
+        headers = {'Content-Disposition': f'attachment; filename="{output_filename}"'}
+        return StreamingResponse(output_buffer, media_type=f'image/{output_format.lower()}', headers=headers)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"فشل تحويل الصورة: {e}")
 
