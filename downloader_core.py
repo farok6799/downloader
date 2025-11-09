@@ -1,6 +1,8 @@
 import os
 import threading
+import asyncio
 import requests
+from urllib.parse import urlparse
 import urllib3
 
 # Suppress only the single InsecureRequestWarning from urllib3 needed for verify=False.
@@ -21,6 +23,15 @@ import shutil # --- جديد: استيراد مكتبة shutil للتحقق من
 # --- محاولة اسئتيراد مكتبة تحميل الفيديوهات ---
 try:
     import yt_dlp
+    # --- جديد: استيراد مكتبات Telethon هنا لجعلها متاحة في هذا الملف ---
+    from telethon.sync import TelegramClient
+    from telethon.sessions import StringSession
+    TELETHON_AVAILABLE = True
+except ImportError:
+    TELETHON_AVAILABLE = False
+    # تعريف متغيرات وهمية لتجنب أخطاء عند عدم وجود المكتبة
+    TelegramClient = None
+    StringSession = None
     YTDLP_AVAILABLE = True
 except ImportError:
     yt_dlp = None
@@ -1038,6 +1049,61 @@ def get_yt_dlp_playlist_entries(url, callback):
     except Exception as e:
         # إعادة إرسال الخطأ ليتم التعامل معه في العامل (worker)
         raise e
+
+# --- جديد: نقل العامل إلى الملف المشترك ---
+# هذا العامل أصبح الآن متاحاً لكل من main_pyside.py و web_main.py
+class TelethonDirectFetcher(threading.Thread):
+    """
+    Uses Telethon to fetch a single, specific message from a Telegram channel.
+    Modified to work as a standard thread and use a callback for results.
+    """
+    def __init__(self, url, api_id, api_hash, session_string, result_callback, error_callback):
+        super().__init__(daemon=True)
+        self.url = url
+        self.api_id = api_id
+        self.api_hash = api_hash
+        self.session_string = session_string
+        self.result_callback = result_callback
+        self.error_callback = error_callback
+
+    def run(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        client = None
+        try:
+            client = TelegramClient(StringSession(self.session_string), self.api_id, self.api_hash, loop=loop)
+
+            async def do_fetch_single():
+                await client.connect()
+                if not await client.is_user_authorized():
+                    raise Exception("جلسة Telethon غير صالحة. يرجى تسجيل الدخول من الإعدادات.")
+
+                parsed_url = urlparse(self.url)
+                path_parts = parsed_url.path.strip('/').split('/')
+                if len(path_parts) < 2:
+                    raise ValueError("رابط المنشور غير صالح. يجب أن يكون بالصيغة t.me/channel/id")
+                
+                channel_ref, msg_id = path_parts[0], int(path_parts[1])
+                channel_entity = await client.get_entity(channel_ref)
+                message = await client.get_messages(channel_entity, ids=msg_id)
+
+                if not message or not (message.file or message.photo):
+                    raise Exception("لم يتم العثور على ملف أو صورة في هذا المنشور.")
+
+                media_obj = message.photo or message.file
+                filename = getattr(media_obj, 'name', f"telegram_photo_{msg_id}.jpg")
+                total_size = getattr(media_obj, 'size', None)
+                internal_url = f"telethon://{getattr(channel_entity, 'username', channel_ref)}/{msg_id}"
+                
+                self.result_callback(internal_url, filename, total_size)
+
+            loop.run_until_complete(do_fetch_single())
+        except Exception as e:
+            self.error_callback(f"خطأ من Telethon: {e}")
+        finally:
+            if client and client.is_connected():
+                loop.run_until_complete(client.disconnect())
+            loop.close()
 
 # --- جديد: إضافة عمال الأدوات إلى الملف الأساسي ---
 

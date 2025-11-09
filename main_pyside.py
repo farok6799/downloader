@@ -26,7 +26,7 @@ except ImportError:
 
 # --- استيراد منطق التحميل الأساسي ---
 # هذا هو "العقل" الذي يحتوي على ميزات التحميل متعدد الأجزاء والإيقاف المؤقت
-from downloader_core import DownloadTask, get_download_details, YTDLRunner, get_yt_dlp_info, get_yt_dlp_playlist_info, get_yt_dlp_playlist_entries, YTDLP_AVAILABLE, load_state, save_state
+from downloader_core import DownloadTask, get_download_details, YTDLRunner, get_yt_dlp_info, get_yt_dlp_playlist_info, get_yt_dlp_playlist_entries, YTDLP_AVAILABLE, load_state, save_state, TelethonDirectFetcher
 
 # --- استيراد مدير تيليجرام الجديد ---
 from telegram_manager import TelegramManager, run_async_from_sync
@@ -300,71 +300,6 @@ class TelethonFetcher(QRunnable):
             # Ensure disconnection and loop closure in all cases
             if client and client.is_connected():
                 client.disconnect()
-            if loop.is_running(): loop.close()
-
-class TelethonDirectFetcher(QRunnable):
-    """
-    Uses Telethon to fetch a single, specific message from a Telegram channel.
-    """
-    def __init__(self, url, api_id, api_hash, phone, session_string):
-        super().__init__()
-        self.url = url
-        self.api_id = api_id
-        self.api_hash = api_hash
-        self.phone = phone
-        self.session_string = session_string
-        self.signals = WorkerSignals()
-
-    @Slot()
-    def run(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        client = None
-        try:
-            client = TelegramClient(StringSession(self.session_string), self.api_id, self.api_hash, loop=loop)
-
-            async def do_fetch_single():
-                await client.connect()
-                if not await client.is_user_authorized():
-                    raise Exception("جلسة Telethon غير صالحة. يرجى تسجيل الدخول من الإعدادات.")
-
-                # Extract channel and message ID from URL
-                parsed_url = urlparse(self.url)
-                path_parts = parsed_url.path.strip('/').split('/')
-                if len(path_parts) < 2:
-                    raise ValueError("رابط المنشور غير صالح. يجب أن يكون بالصيغة t.me/channel/id")
-                
-                channel_ref = path_parts[0]
-                msg_id = int(path_parts[1])
-
-                channel_entity = await client.get_entity(channel_ref)
-                message = await client.get_messages(channel_entity, ids=msg_id)
-
-                # --- تعديل: قبول أي نوع من الملفات أو الصور ---
-                if not message or not (message.file or message.photo): # التحقق من وجود أي ملف أو صورة
-                    raise Exception("لم يتم العثور على ملف أو صورة في هذا المنشور.")
-
-                # --- إصلاح: التعامل الصحيح مع حجم الصور والملفات ---
-                if message.photo:
-                    # الصور ليس لها اسم، ننشئ واحداً.
-                    filename = f"telegram_{channel_ref}_{msg_id}.jpg"
-                    # لا يمكن ضمان وجود الحجم دائماً، لذا نمرر None ونعتمد على التحميل غير المحدد
-                    total_size = getattr(message.photo.sizes[-1], 'size', None) if message.photo.sizes else None
-                else: # إذا كان ملفاً عادياً
-                    filename = getattr(message.file, 'name', None) or f"telegram_file_{msg_id}"
-                    total_size = getattr(message.file, 'size', None)
-
-                internal_url = f"telethon://{getattr(channel_entity, 'username', channel_ref)}/{msg_id}"
-                
-                # Emit a special signal or reuse one. Let's reuse details_fetched for simplicity.
-                # We'll pass the internal_url in the 'url' field.
-                self.signals.details_fetched.emit(internal_url, filename, total_size)
-
-            loop.run_until_complete(do_fetch_single())
-        except Exception as e:
-            self.signals.fetch_error.emit(f"خطأ من Telethon: {e}")
-        finally:
-            if client and client.is_connected(): client.disconnect()
             if loop.is_running(): loop.close()
 class TelethonDownloadWorker(QRunnable):
 
@@ -2169,14 +2104,16 @@ class MainWindow(QMainWindow):
         if len(path_parts) == 2 and path_parts[1].isdigit():
             print("Starting  telethon fetch Direect with Telethon ")
             self.TelethonDirectFetcherRunning = True
-
+            # --- تعديل: استخدام العامل الجديد من downloader_core ---
+            # لم نعد بحاجة إلى QRunnable هنا، بل نستخدم خيط بايثون عادي
+            # ونمرر له دوال callback لإرجاع النتيجة.
             fetcher = TelethonDirectFetcher(
-
-                url, tg_settings["api_id"], tg_settings["api_hash"],
-                tg_settings.get("phone"), tg_settings.get("session_string")
+                url=url, api_id=tg_settings["api_id"], api_hash=tg_settings["api_hash"],
+                session_string=tg_settings.get("session_string"),
+                result_callback=self.create_direct_download_task_ui,
+                error_callback=self.on_fetch_error
             )
-            fetcher.signals.details_fetched.connect(self.create_direct_download_task_ui)
-            fetcher.signals.fetch_error.connect(self.on_fetch_error)
+            fetcher.start() # بدء الخيط
         else: # It's a full channel link
             fetcher = TelethonFetcher(
                 url, tg_settings["api_id"], tg_settings["api_hash"],
