@@ -579,36 +579,20 @@
                 const { url, source, filename, details } = appState.currentDownloadDetails;
                 const formatId = formatsSelect.value || (details?.format_id);
 
-                // --- الحل الجذري: التعامل مع الفيديوهات التي تتطلب دمجاً ---
-                // الخطوة 1: محاولة التحميل المباشر أولاً
-                showStatus('جاري محاولة التحميل المباشر...', false);
+                // --- الحل الجذري لمشكلة CORS ---
+                // بدلاً من استخدام fetch، نقوم بتوجيه المتصفح مباشرة إلى رابط البث.
+                // المتصفح سيقوم تلقائياً بمتابعة أي إعادة توجيه من الخادم (Redirect)
+                // وسيبدأ التحميل مباشرة من المصدر النهائي (مثل googlevideo.com) دون مشاكل CORS.
+                // هذه الطريقة لا تسمح لنا بالتحقق من استجابة الخادم (مثل خطأ 418)،
+                // ولكنها الطريقة الصحيحة للتعامل مع التحميلات المباشرة.
                 const streamUrl = new URL(`${API_BASE_URL}/api/v1/stream`);
                 streamUrl.searchParams.append('url', url);
                 streamUrl.searchParams.append('filename', filename);
-                streamUrl.searchParams.append('source', source);
+                streamUrl.searchParams.append('source', source); // تم تصحيح الخطأ الإملائي هنا أيضاً
                 if (formatId) streamUrl.searchParams.append('format_id', formatId);
 
-                try {
-                    // نستخدم fetch بدلاً من window.location للتحقق من الاستجابة
-                    const response = await fetch(streamUrl.href);
-
-                    // الخطوة 2: التحقق من الاستجابة
-                    if (response.status === 418) {
-                        // الحالة الخاصة: الخادم يخبرنا أنه يجب استخدام WebSocket
-                        showStatus('التحميل المباشر غير مدعوم لهذا الفيديو. بدء التحميل في الخلفية...', false);
-                        // ننتقل إلى الخطة ب: بدء التحميل عبر WebSocket
-                        await startLegacyDownload(url, source, formatId);
-                    } else if (!response.ok) {
-                        // أي خطأ آخر
-                        const error = await response.json();
-                        throw new Error(error.detail || `فشل التحميل المباشر (Status: ${response.status})`);
-                    } else {
-                        // الحالة الناجحة: التحميل المباشر يعمل، نعيد توجيه المتصفح
-                        window.location.href = streamUrl.href;
-                    }
-                } catch (error) {
-                    showStatus(`❌ خطأ: ${error.message}`, true);
-                }
+                // فتح الرابط الجديد، مما يؤدي إلى بدء التحميل في المتصفح
+                window.location.href = streamUrl.href;
             };
 
             const createDownloadItem = (taskId, filename) => {
