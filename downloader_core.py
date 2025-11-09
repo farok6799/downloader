@@ -21,21 +21,20 @@ import subprocess
 import shutil # --- جديد: استيراد مكتبة shutil للتحقق من وجود ffmpeg ---
 
 # --- محاولة اسئتيراد مكتبة تحميل الفيديوهات ---
+# --- إصلاح: فصل التحقق من كل مكتبة على حدة لتجنب الأخطاء المنطقية ---
 try:
     import yt_dlp
-    # --- جديد: استيراد مكتبات Telethon هنا لجعلها متاحة في هذا الملف ---
+    YTDLP_AVAILABLE = True
+except ImportError:
+    yt_dlp = None
+    YTDLP_AVAILABLE = False
+
+try:
     from telethon.sync import TelegramClient
     from telethon.sessions import StringSession
     TELETHON_AVAILABLE = True
 except ImportError:
     TELETHON_AVAILABLE = False
-    # تعريف متغيرات وهمية لتجنب أخطاء عند عدم وجود المكتبة
-    TelegramClient = None
-    StringSession = None
-    YTDLP_AVAILABLE = True
-except ImportError:
-    yt_dlp = None
-    YTDLP_AVAILABLE = False
 
 # --- محاولة استيراد مكتبة cloudscraper (لحل روابط JS) ---
 try:
