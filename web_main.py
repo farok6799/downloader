@@ -408,20 +408,25 @@ async def stream_download(url: str, filename: str, source: str, format_id: str =
         # --- الحل: استخدام yt-dlp لجلب رابط التحميل المباشر فقط ---
         # هذا أسرع بكثير من تحميل الملف على الخادم أولاً
         ydl_opts = {
-            'format': format_id if format_id else 'best',
+            # --- تعديل: طلب أفضل جودة فيديو وصوت بشكل منفصل ---
+            # هذا يضمن الحصول على أفضل جودة ممكنة، وسيتم دمجها تلقائياً إذا لزم الأمر.
+            'format': format_id if format_id else 'bestvideo+bestaudio/best',
             'quiet': True,
             'noplaylist': True,
         }
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
-                # الحصول على رابط التحميل المباشر الذي وجده yt-dlp
+                # --- تعديل: الحصول على رابط التحميل المباشر الذي وجده yt-dlp ---
                 direct_url = info.get('url')
                 if not direct_url:
                     raise HTTPException(status_code=500, detail="فشل yt-dlp في استخراج رابط التحميل المباشر.")
                 
-                # إعادة توجيه المتصفح مباشرة إلى هذا الرابط
-                return FileResponse(path=direct_url, filename=filename, media_type='application/octet-stream')
+                # --- الحل الجذري: إعادة توجيه المتصفح إلى الرابط المباشر ---
+                # هذا يخبر المتصفح "اذهب وحمل من هذا الرابط" بدلاً من أن يقوم الخادم بالتحميل.
+                # نستخدم استجابة خاصة (RedirectResponse) لهذا الغرض.
+                from fastapi.responses import RedirectResponse
+                return RedirectResponse(url=direct_url)
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"خطأ من yt-dlp: {e}")
