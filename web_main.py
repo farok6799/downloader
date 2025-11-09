@@ -227,10 +227,14 @@ async def fetch_details(request: UrlRequest):
     # وإذا كانت إعدادات تيليجرام موجودة.
     tg_settings = SETTINGS.get("telegram", {})
     is_telegram_post = 't.me/' in url and '/s/' not in url and tg_settings.get("session_string")
-    if is_telegram_post: # --- تعديل: تبسيط المنطق، سيتم التعامل معه في نقطة النهاية stream ---
-        # فقط قم بإرجاع المعلومات الأساسية، سيتم التعامل مع التفاصيل لاحقاً
-        # هذا يمنع الحاجة إلى TelethonDirectFetcher هنا
-        return {"filename": "telegram_post.mp4", "total_size": None, "source": "telethon", "internal_url": url}
+    if is_telegram_post:
+        try:
+            # --- الحل: استدعاء دالة جديدة لجلب تفاصيل المنشور الحقيقية ---
+            details = await get_telegram_post_details_async(url, tg_settings)
+            # إرجاع التفاصيل الحقيقية للواجهة الأمامية
+            return {**details, "source": "telethon"}
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"فشل جلب معلومات منشور تيليجرام: {e}")
 
     # تحديد إذا كان الرابط لموقع مثل يوتيوب أم رابط مباشر
     # --- تعديل: إضافة t.me/s/ للروابط الخدمية (القنوات العامة) ---
@@ -333,6 +337,44 @@ async def start_download_legacy(request: DownloadRequest):
     # لا نحتاج إلى cleanup_task هنا لأن العامل سيتم تنظيفه عند الإلغاء أو الانتهاء
     return {"status": "success", "message": f"بدأ تحميل الرابط: {request.url}"}
 
+async def get_telegram_post_details_async(url: str, tg_settings: dict) -> dict:
+    """
+    دالة غير متزامنة أصلية (Native Async) لجلب تفاصيل منشور تيليجرام.
+    هذه الدالة متوافقة تماماً مع FastAPI وتتجنب مشاكل التوافق مع PySide.
+    """
+    from telethon.sync import TelegramClient
+    from telethon.sessions import StringSession
+    from urllib.parse import urlparse
+
+    async with TelegramClient(StringSession(tg_settings.get("session_string")), 
+                              int(tg_settings["api_id"]), 
+                              tg_settings["api_hash"]) as client:
+
+        if not await client.is_user_authorized():
+            raise Exception("جلسة Telethon غير صالحة. يرجى تسجيل الدخول من الإعدادات.")
+
+        # استخراج اسم القناة ومعرف الرسالة من الرابط
+        parsed_url = urlparse(url)
+        path_parts = parsed_url.path.strip('/').split('/')
+        if len(path_parts) < 2 or not path_parts[1].isdigit():
+            raise ValueError("رابط منشور تيليجرام غير صالح.")
+            
+        channel_ref, msg_id = path_parts[0], int(path_parts[1])
+
+        message = await client.get_messages(channel_ref, ids=msg_id)
+
+        if not message or not (message.file or message.photo):
+            raise Exception("لم يتم العثور على ملف أو صورة في هذا المنشور.")
+
+        media_obj = message.photo or message.file
+        filename = getattr(media_obj, 'name', f"telegram_{channel_ref}_{msg_id}.jpg")
+        total_size = getattr(media_obj, 'size', None)
+
+        return {
+            "filename": filename,
+            "total_size": total_size,
+            "internal_url": url # نستخدم الرابط الأصلي لأنه مدعوم مباشرة
+        }
 
 # --- جديد: نقطة نهاية لبث التحميل مباشرة إلى المتصفح ---
 @app.get("/api/v1/stream", summary="بث ملف للتحميل المباشر في المتصفح")
