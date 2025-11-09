@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import threading
 from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,13 +11,11 @@ import shutil
 import re
 import requests 
 import yt_dlp
+import time
 # --- استيراد المنطق الأساسي من ملفاتك الحالية ---
 # نفترض أن هذه الملفات موجودة في نفس المجلد
-from downloader_core import get_download_details, get_yt_dlp_info, YTDLRunner, YTDLP_AVAILABLE, DownloadTask, find_unique_filepath, ImageConverterWorker, VideoMergerWorker, FileRepairWorker, PIL_AVAILABLE
-from telegram_manager import TelegramManager, run_async_from_sync
-# --- جديد: استيراد عامل تحويل Excel ---
-# --- تعديل: لم نعد بحاجة إلى TelethonDirectFetcher هنا ---
-from main_pyside import ExcelToPdfWorker, TelethonDirectFetcher
+from downloader_core import get_download_details, get_yt_dlp_info, YTDLRunner, YTDLP_AVAILABLE, DownloadTask, find_unique_filepath, ImageConverterWorker, VideoMergerWorker, FileRepairWorker, PIL_AVAILABLE, format_size, format_eta
+from telegram_manager import TelegramManager
 
 # --- تحميل الإعدادات (بشكل مبسط) ---
 # في تطبيق حقيقي، ستحتاج إلى نظام إعدادات أكثر قوة
@@ -31,6 +30,104 @@ def save_settings():
     """يحفظ الإعدادات الحالية في ملف JSON."""
     with open("settings.json", "w", encoding="utf-8") as f:
         json.dump(SETTINGS, f, ensure_ascii=False, indent=4)
+
+# --- الحل: نقل العامل الذي لا يعتمد على PySide إلى هنا ---
+# تم نقل هذا الكلاس من main_pyside.py لأنه لا يستخدم أي شيء من واجهة المستخدم
+# ويمكن استخدامه مباشرة في الخادم.
+class TelethonDownloadWorker(threading.Thread):
+    def __init__(self, task_id, telethon_url, download_folder, filename, api_id, api_hash, session_string, update_callback, environment='desktop'):
+        super().__init__(daemon=True)
+        self.update_callback = update_callback
+        self.task_id = task_id
+        self.telethon_url = telethon_url
+        self.download_folder = download_folder
+        self.filename = filename
+        self.api_id = api_id
+        self.api_hash = api_hash
+        self.session_string = session_string
+        self.stop_flag = threading.Event()
+        self.pause_flag = threading.Event()
+        self.total_size = 0
+        self.last_update_time = time.monotonic()
+        self.last_downloaded = 0
+        self.smoothed_speed = 0.0
+        self.SMOOTHING_FACTOR = 0.2
+
+    def _send_update(self, data):
+        if self.update_callback:
+            self.update_callback(data)
+
+    def cancel(self):
+        self.stop_flag.set()
+        self.pause_flag.set()
+        self._send_update({"task_id": self.task_id, "type": "canceled"})
+
+    def toggle_pause_resume(self):
+        if self.pause_flag.is_set():
+            self.pause_flag.clear()
+        else:
+            self.pause_flag.set()
+
+    def _progress_callback(self, current, total):
+        self.total_size = total
+        if self.stop_flag.is_set():
+            raise Exception("Download cancelled by user.")
+
+        while self.pause_flag.is_set():
+            if self.stop_flag.is_set(): raise Exception("Download cancelled while paused.")
+            time.sleep(0.5)
+
+        current_time = time.monotonic()
+        elapsed_time = current_time - self.last_update_time
+
+        if elapsed_time >= 0.5:
+            speed = (current - self.last_downloaded) / elapsed_time
+            self.smoothed_speed = (speed * self.SMOOTHING_FACTOR) + (self.smoothed_speed * (1 - self.SMOOTHING_FACTOR))
+            eta = (total - current) / self.smoothed_speed if self.smoothed_speed > 0 else None
+            percent = int((current / total) * 100)
+            text = f"{self.filename} - {format_size(current)} / {format_size(total)} ({percent}%) | {format_size(self.smoothed_speed)}/s | ETA: {format_eta(eta)}"
+            self._send_update({"task_id": self.task_id, "type": "progress", "percent": percent, "text": text})
+            self.last_downloaded = current
+            self.last_update_time = current_time
+
+    def run(self):
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        output_path = os.path.join(self.download_folder, self.filename)
+
+        from telethon.sync import TelegramClient
+        from telethon.sessions import StringSession
+
+        client = TelegramClient(StringSession(self.session_string), self.api_id, self.api_hash, loop=loop)
+
+        async def do_download():
+            async with client:
+                if not await client.is_user_authorized():
+                    raise Exception("جلسة Telethon غير صالحة.")
+
+                parts = self.telethon_url.replace("telethon://", "").split('/')
+                channel_ref, msg_id = parts[0], int(parts[1])
+                entity = await client.get_entity(channel_ref)
+                message = await client.get_messages(entity, ids=msg_id)
+
+                if not message or not message.media:
+                    raise Exception("لم يتم العثور على وسائط في الرسالة.")
+
+                await client.download_media(
+                    message.media,
+                    file=output_path,
+                    progress_callback=self._progress_callback
+                )
+
+        try:
+            loop.run_until_complete(do_download())
+            if not self.stop_flag.is_set():
+                self._send_update({"task_id": self.task_id, "type": "done", "text": f"✅ تم تحميل {self.filename} بنجاح"})
+        except Exception as e:
+            if not self.stop_flag.is_set():
+                self._send_update({"task_id": self.task_id, "type": "error", "text": f"❌ خطأ أثناء تحميل Telethon: {e}"})
+        finally:
+            loop.close()
 
 
 # --- تهيئة تطبيق FastAPI ---
@@ -130,26 +227,10 @@ async def fetch_details(request: UrlRequest):
     # وإذا كانت إعدادات تيليجرام موجودة.
     tg_settings = SETTINGS.get("telegram", {})
     is_telegram_post = 't.me/' in url and '/s/' not in url and tg_settings.get("session_string")
-    if is_telegram_post:
-        from urllib.parse import urlparse
-        from telethon.sync import TelegramClient
-        from telethon.sessions import StringSession # --- إصلاح: استيراد من المسار الصحيح ---
-        path_parts = urlparse(url).path.strip('/').split('/')
-        # التأكد من أن الرابط يحتوي على جزئين (اسم القناة/معرف الرسالة)
-        if len(path_parts) == 2 and path_parts[1].isdigit():
-            try:
-                # --- الحل: استخدام دالة async أصلية بدلاً من العامل المعتمد على PySide ---
-                details = await get_telegram_post_details_async(url, tg_settings)
-                return {
-                    "filename": details['filename'],
-                    "total_size": details['total_size'],
-                    # --- تعديل مهم: إرسال الرابط الداخلي للواجهة الأمامية ---
-                    # هذا يخبر الواجهة بأنها يجب أن تستخدم عامل تحميل تيليجرام
-                    "source": "telethon",
-                    "internal_url": details['internal_url']
-                }
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"فشل جلب معلومات منشور تيليجرام: {e}")
+    if is_telegram_post: # --- تعديل: تبسيط المنطق، سيتم التعامل معه في نقطة النهاية stream ---
+        # فقط قم بإرجاع المعلومات الأساسية، سيتم التعامل مع التفاصيل لاحقاً
+        # هذا يمنع الحاجة إلى TelethonDirectFetcher هنا
+        return {"filename": "telegram_post.mp4", "total_size": None, "source": "telethon", "internal_url": url}
 
     # تحديد إذا كان الرابط لموقع مثل يوتيوب أم رابط مباشر
     # --- تعديل: إضافة t.me/s/ للروابط الخدمية (القنوات العامة) ---
@@ -223,27 +304,6 @@ async def start_download_legacy(request: DownloadRequest):
             format_id=request.format_id,
             audio_only=request.audio_only
         )
-    # --- جديد: التعامل مع طلبات تحميل تيليجرام ---
-    elif request.source == 'telethon' and request.internal_url:
-        # جلب التفاصيل مرة أخرى للتأكد (اختياري لكنه جيد للتحقق)
-        # في هذه الحالة، التفاصيل موجودة بالفعل من الخطوة السابقة
-        # لذا سنقوم بإنشاء العامل مباشرة
-        from main_pyside import TelethonDownloadWorker
-        # نحتاج إلى اسم الملف من الرابط الداخلي، يمكن تحسين هذا لاحقاً
-        filename = f"telegram_file_{task_id}" # اسم مؤقت
-        filepath = find_unique_filepath(SETTINGS['download_folder'], filename)
-
-        worker = TelethonDownloadWorker(
-            task_id=task_id,
-            telethon_url=request.internal_url,
-            download_folder=SETTINGS['download_folder'],
-            filename=os.path.basename(filepath),
-            api_id=SETTINGS['telegram']['api_id'],
-            api_hash=SETTINGS['telegram']['api_hash'],
-            session_string=SETTINGS['telegram']['session_string'],
-            update_callback=progress_callback,
-            environment='web'
-        )
     elif request.source == 'direct':
         # جلب التفاصيل مرة أخرى للتأكد من صحتها قبل البدء
         filename, total_size, error = get_download_details(request.url)
@@ -273,56 +333,6 @@ async def start_download_legacy(request: DownloadRequest):
     # لا نحتاج إلى cleanup_task هنا لأن العامل سيتم تنظيفه عند الإلغاء أو الانتهاء
     return {"status": "success", "message": f"بدأ تحميل الرابط: {request.url}"}
 
-async def get_telegram_post_details_async(url: str, tg_settings: dict) -> dict:
-    """
-    دالة غير متزامنة أصلية (Native Async) لجلب تفاصيل منشور تيليجرام.
-    هذه الدالة متوافقة تماماً مع FastAPI وتتجنب مشاكل التوافق مع PySide.
-    """
-    from telethon.sync import TelegramClient
-    from telethon.sessions import StringSession # --- إصلاح: استيراد من المسار الصحيح ---
-    from urllib.parse import urlparse
-
-    client = None
-    try:
-        # استخدام with لضمان قطع الاتصال تلقائياً
-        async with TelegramClient(StringSession(tg_settings.get("session_string")), 
-                                  tg_settings["api_id"], 
-                                  tg_settings["api_hash"]) as client:
-
-            if not await client.is_user_authorized():
-                raise Exception("جلسة Telethon غير صالحة. يرجى تسجيل الدخول من الإعدادات.")
-
-            # استخراج اسم القناة ومعرف الرسالة من الرابط
-            parsed_url = urlparse(url)
-            path_parts = parsed_url.path.strip('/').split('/')
-            channel_ref, msg_id = path_parts[0], int(path_parts[1])
-
-            channel_entity = await client.get_entity(channel_ref)
-            message = await client.get_messages(channel_entity, ids=msg_id)
-
-            if not message or not (message.file or message.photo):
-                raise Exception("لم يتم العثور على ملف أو صورة في هذا المنشور.")
-
-            # التعامل مع حجم واسم الملفات والصور
-            if message.photo:
-                filename = f"telegram_{channel_ref}_{msg_id}.jpg"
-                total_size = getattr(message.photo.sizes[-1], 'size', None) if message.photo.sizes else None
-            else: # ملف عادي
-                filename = getattr(message.file, 'name', f"telegram_file_{msg_id}")
-                total_size = getattr(message.file, 'size', None)
-
-            # إنشاء الرابط الداخلي الذي يفهمه عامل التحميل
-            internal_url = f"telethon://{getattr(channel_entity, 'username', channel_ref)}/{msg_id}"
-
-            return {
-                "internal_url": internal_url,
-                "filename": filename,
-                "total_size": total_size
-            }
-    except Exception as e:
-        # إعادة إرسال الخطأ ليتم عرضه في الواجهة
-        raise e
-
 
 # --- جديد: نقطة نهاية لبث التحميل مباشرة إلى المتصفح ---
 @app.get("/api/v1/stream", summary="بث ملف للتحميل المباشر في المتصفح")
@@ -345,15 +355,10 @@ async def stream_download(url: str, filename: str, source: str, format_id: str =
             """
             client = TelegramClient(StringSession(tg_settings["session_string"]), tg_settings["api_id"], tg_settings["api_hash"])
             try:
-                await client.connect()
-                if not await client.is_user_authorized():
-                    raise Exception("جلسة Telethon غير صالحة.")
+                await client.start(phone=tg_settings.get("phone"))
 
-                # استخراج معرف الرسالة من الرابط الداخلي (telethon://...)
-                parts = url.replace("telethon://", "").split('/')
-                channel_ref, msg_id = parts[0], int(parts[1])
-                entity = await client.get_entity(channel_ref)
-                message = await client.get_messages(entity, ids=msg_id)
+                # --- تعديل: التعامل مع رابط t.me مباشر ---
+                message = await client.get_messages(url, ids=None)
 
                 if not message or not message.media:
                     raise Exception("لم يتم العثور على وسائط في الرسالة.")
@@ -366,8 +371,7 @@ async def stream_download(url: str, filename: str, source: str, format_id: str =
                 # في حالة حدوث خطأ، يمكننا تسجيله ولكن لا يمكننا إرسال استجابة HTTP أخرى
                 print(f"خطأ أثناء بث تيليجرام: {e}")
             finally:
-                if client.is_connected():
-                    await client.disconnect()
+                await client.disconnect()
 
         headers = {
             'Content-Disposition': f'attachment; filename="{filename}"',
@@ -498,14 +502,12 @@ async def start_telegram_download(request: TelegramDownloadRequest):
     safe_filename = re.sub(r'[\\/*?:"<>|]', "", file_info.get('filename', f"telegram_file_{task_id}"))
     filepath = find_unique_filepath(SETTINGS['download_folder'], safe_filename)
 
-    # --- جديد: استيراد واستخدام TelethonDownloadWorker ---
-    from main_pyside import TelethonDownloadWorker
     worker = TelethonDownloadWorker(
         task_id=task_id,
         telethon_url=file_info['url'],
         download_folder=SETTINGS['download_folder'],
         filename=os.path.basename(filepath),
-        api_id=tg_settings["api_id"],
+        api_id=int(tg_settings["api_id"]),
         api_hash=tg_settings["api_hash"],
         session_string=tg_settings.get("session_string"),
         update_callback=progress_callback, # تمرير الـ callback مباشرة
@@ -513,7 +515,6 @@ async def start_telegram_download(request: TelegramDownloadRequest):
     )
 
     active_workers[task_id] = worker
-    worker.start()
     return {"status": "success", "message": f"بدأ تحميل ملف تيليجرام: {safe_filename}"}
 
 # --- 3. واجهة برمجة التطبيقات (API) لجلب قنوات تيليجرام ---
@@ -526,7 +527,7 @@ async def get_telegram_dialogs():
     if not tg_settings.get("session_string"):
         raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام. يرجى تسجيل الدخول من الإعدادات أولاً.")
 
-    manager = TelegramManager(tg_settings["api_id"], tg_settings["api_hash"], tg_settings.get("session_string"))
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string"))
     
     try:
         # FastAPI يتعامل مع الدوال غير المتزامنة (async) بشكل ممتاز
@@ -555,7 +556,7 @@ async def get_telegram_files(dialog_id: int):
     if not tg_settings.get("session_string"):
         raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام.")
 
-    manager = TelegramManager(tg_settings["api_id"], tg_settings["api_hash"], tg_settings.get("session_string"))
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string"))
 
     async def file_generator():
         """مولّد غير متزامن يرسل كل ملف كسطر JSON."""
@@ -598,8 +599,12 @@ async def convert_excel_to_pdf(file: UploadFile = File(...)):
 
     try:
         # استخدام نفس العامل من برنامج سطح المكتب (بعد تعديل بسيط)
-        # ملاحظة: هذا العامل يعمل في الخيط الرئيسي، للتحويلات الكبيرة يجب وضعه في BackgroundTasks
-        worker = ExcelToPdfWorker(input_path, output_path)
+        # --- الحل: استيراد الكلاس عند الحاجة فقط لتجنب خطأ PySide6 ---
+        try:
+            from main_pyside import ExcelToPdfWorker
+        except ImportError:
+             raise HTTPException(status_code=501, detail="مكتبات الواجهة الرسومية غير متاحة على الخادم لهذه الميزة.")
+        worker = ExcelToPdfWorker(input_path, output_path) # type: ignore
         worker.run() # تشغيل مباشر
 
         # إتاحة الملف المحول للتحميل
@@ -765,9 +770,9 @@ async def search_and_join_telegram_channel(request: UrlRequest):
     if not tg_settings.get("session_string"):
         raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام.")
 
-    manager = TelegramManager(tg_settings["api_id"], tg_settings["api_hash"], tg_settings.get("session_string"))
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string"))
     try:
-        dialog_info = await run_async_from_sync(manager.join_and_get_dialog(request.url))
+        dialog_info = await manager.join_and_get_dialog(request.url)
         if dialog_info:
             return dialog_info
         else:
@@ -782,9 +787,9 @@ async def leave_telegram_channel(dialog_id: int):
     if not tg_settings.get("session_string"):
         raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام.")
 
-    manager = TelegramManager(tg_settings["api_id"], tg_settings["api_hash"], tg_settings.get("session_string"))
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string"))
     try:
-        message = await run_async_from_sync(manager.leave_channel(dialog_id))
+        message = await manager.leave_channel(dialog_id)
         return {"status": "success", "message": message}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -859,7 +864,7 @@ async def telegram_send_code(request: TelegramLoginRequest):
     يبدأ عملية تسجيل الدخول بإرسال كود تحقق إلى رقم الهاتف المحدد.
     """
     tg_settings = SETTINGS.get("telegram", {})
-    manager = TelegramManager(tg_settings["api_id"], tg_settings["api_hash"])
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"])
     try:
         # run_async_from_sync لا يعمل بشكل جيد مع دوال تسجيل الدخول
         # لذا سنستخدم المنطق غير المتزامن مباشرة
@@ -875,7 +880,7 @@ async def telegram_submit_code(request: TelegramCodeRequest):
     إذا نجح، سيحفظ جلسة المستخدم.
     """
     tg_settings = SETTINGS.get("telegram", {})
-    manager = TelegramManager(tg_settings["api_id"], tg_settings["api_hash"])
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"])
     try:
         session_string = await manager.sign_in(
             phone=request.phone,
@@ -901,7 +906,7 @@ async def telegram_submit_password(request: TelegramPasswordRequest):
     tg_settings = SETTINGS.get("telegram", {})
     # يفترض أن يكون المدير قد تم تهيئته من الخطوة السابقة
     # هذا النهج مبسط، في تطبيق حقيقي قد تحتاج إلى إدارة حالة العميل بشكل أفضل
-    manager = TelegramManager(tg_settings["api_id"], tg_settings["api_hash"])
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"])
     
     # إعادة الاتصال بنفس العميل الذي طلب الكود
     # هذا الجزء معقد بدون إدارة جلسات المستخدمين، سنعتمد على أن العميل لا يزال موجوداً
@@ -926,23 +931,28 @@ async def check_ffmpeg():
 @app.post("/api/v1/tools/install-ffmpeg", summary="تثبيت ffmpeg تلقائياً")
 async def install_ffmpeg(background_tasks: BackgroundTasks):
     # سنستخدم عاملاً من main_pyside لأنه يحتوي على منطق التثبيت
-    from main_pyside import FfmpegInstallerWorker
-    
-    # لا يمكننا إرجاع حالة التقدم هنا بسهولة عبر HTTP
-    # لذا سنقوم بتشغيله في الخلفية ونأمل أن ينجح
-    worker = FfmpegInstallerWorker()
-    background_tasks.add_task(worker.run)
+    try:
+        from main_pyside import FfmpegInstallerWorker
+        worker = FfmpegInstallerWorker()
+        background_tasks.add_task(worker.run)
+    except ImportError:
+        raise HTTPException(status_code=501, detail="مكتبات الواجهة الرسومية غير متاحة على الخادم لهذه الميزة.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     
     return {"status": "started", "message": "بدأت عملية تثبيت ffmpeg في الخلفية. قد تستغرق بعض الوقت."}
 
 # --- جديد: واجهة برمجية لتحديث yt-dlp ---
 @app.post("/api/v1/tools/update-ytdlp", summary="تحديث مكتبة yt-dlp")
 async def update_ytdlp(background_tasks: BackgroundTasks):
-    from main_pyside import YtdlpUpdaterWorker
-    
-    # هذا أيضاً سيعمل في الخلفية
-    worker = YtdlpUpdaterWorker()
-    background_tasks.add_task(worker.run)
+    try:
+        from main_pyside import YtdlpUpdaterWorker
+        worker = YtdlpUpdaterWorker()
+        background_tasks.add_task(worker.run)
+    except ImportError:
+        raise HTTPException(status_code=501, detail="مكتبات الواجهة الرسومية غير متاحة على الخادم لهذه الميزة.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     
     return {"status": "started", "message": "بدأت عملية تحديث yt-dlp في الخلفية."}
 

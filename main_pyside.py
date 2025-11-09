@@ -455,144 +455,6 @@ class TelethonDownloadWorker(QRunnable):
             self.last_downloaded = current
             self.last_update_time = current_time
 
-    async def download_segment(self, client, message, index, start_byte, end_byte, semaphore):
-        """
-        Downloads a specific segment of the file using iter_download.
-        This is the core of the manual multi-part download.
-        """
-        part_file_path = os.path.join(self.download_folder, f"{self.filename}.part{index}")
-        
-        # Check for existing part file to resume
-        async with semaphore: # الانتظار هنا حتى يتوفر مكان فارغ للتحميل
-            if self.stop_flag.is_set(): return
-
-            try:
-                downloaded_size = os.path.getsize(part_file_path)
-            except OSError:
-                downloaded_size = 0
-
-            self.segment_progress[index] = downloaded_size
-            current_pos = start_byte + downloaded_size
-
-            if current_pos > end_byte:
-                return # This segment is already complete
-
-            try:
-                remaining_in_segment = end_byte - current_pos + 1
-                async for chunk in client.iter_download(message.media, offset=current_pos, limit=remaining_in_segment):
-                    if self.stop_flag.is_set(): return
-
-                    # Pause handling
-                    while self.pause_flag.is_set():
-                        if self.stop_flag.is_set(): return
-                        await asyncio.sleep(0.5)
-
-                    if chunk:
-                        bytes_to_write = len(chunk)
-                        if self.segment_progress[index] + bytes_to_write > (end_byte - start_byte + 1):
-                            bytes_to_write = (end_byte - start_byte + 1) - self.segment_progress[index]
-                            chunk = chunk[:bytes_to_write]
-                        
-                        with open(part_file_path, 'ab') as f:
-                            f.write(chunk)
-                        self.segment_progress[index] += bytes_to_write
-
-            except Exception as e:
-                if not self.stop_flag.is_set():
-                    print(f"Error in Telethon segment {index}: {e}")
-                    # We can signal an error here if needed
-
-    def combine_files(self):
-        """Combines the downloaded parts into the final file."""
-        output_path = os.path.join(self.download_folder, self.filename)
-        try:
-            with open(output_path, 'wb') as final_file:
-                for i in range(self.NUM_SEGMENTS):
-                    part_file = os.path.join(self.download_folder, f"{self.filename}.part{i}")
-                    if os.path.exists(part_file):
-                        with open(part_file, 'rb') as pf:
-                            shutil.copyfileobj(pf, final_file)
-                        os.remove(part_file)
-            return True
-        except Exception as e:
-            print(f"Error combining Telethon parts: {e}")
-            return False
-
-    def monitor_progress(self):
-        """A separate thread function to monitor and report progress."""
-        last_total_downloaded = sum(self.segment_progress)
-        last_update_time = time.monotonic()
-
-        # --- إصلاح جذري: التحقق الصحيح من حالة مهام asyncio ---
-        # الطريقة الصحيحة للتحقق مما إذا كانت مهمة asyncio لا تزال قيد التشغيل هي التحقق من أنها لم تنتهِ بعد (not task.done()).
-        # هذا يضمن أن خيط المراقبة سينتظر اكتمال جميع أجزاء التحميل.
-        while any(not t.done() for t in self.worker_threads):
-            if self.stop_flag.is_set():
-                return
-
-            if self.pause_flag.is_set():
-                # Save state when paused
-                # (This part can be enhanced to save segment progress to disk)
-                total_downloaded = sum(self.segment_progress)
-                text = f"{self.filename} - متوقف مؤقتاً ({format_size(total_downloaded)} / {format_size(self.total_size)})"
-                self._send_update({"task_id": self.task_id, "type": "paused", "text": text})
-                
-                # Wait until un-paused
-                while self.pause_flag.is_set():
-                    if self.stop_flag.is_set(): return
-                    time.sleep(0.5)
-                
-                # Resumed
-                self._send_update({"task_id": self.task_id, "type": "resumed"})
-                last_update_time = time.monotonic() # Reset timer on resume
-                last_total_downloaded = sum(self.segment_progress)
-
-            current_total_downloaded = sum(self.segment_progress)
-            current_time = time.monotonic()
-            elapsed_time = current_time - last_update_time
-
-            if elapsed_time >= 0.5:
-                speed = (current_total_downloaded - last_total_downloaded) / elapsed_time
-                self.smoothed_speed = (speed * self.SMOOTHING_FACTOR) + (self.smoothed_speed * (1 - self.SMOOTHING_FACTOR))
-                
-                eta = (self.total_size - current_total_downloaded) / self.smoothed_speed if self.smoothed_speed > 0 else None
-                percent = int((current_total_downloaded / self.total_size) * 100) if self.total_size > 0 else 0
-                
-                text = f"{self.filename} - {format_size(current_total_downloaded)} / {format_size(self.total_size)} ({percent}%) | {format_size(self.smoothed_speed)}/s | ETA: {format_eta(eta)}"
-                self._send_update({"task_id": self.task_id, "type": "progress", "percent": percent, "text": text})
-
-                last_total_downloaded = current_total_downloaded
-                last_update_time = current_time
-            
-            time.sleep(0.1)
-
-        # --- إصلاح: التحقق النهائي بعد انتهاء حلقة المراقبة ---
-        # هذا يضمن عدم المتابعة إذا تم إلغاء العملية.
-        if self.stop_flag.is_set() or self.pause_flag.is_set():
-            return # تم الإلغاء، لا تفعل شيئاً
-
-        # التحقق من اكتمال التحميل
-        final_downloaded = sum(self.segment_progress)
-        if self.total_size > 0 and final_downloaded < self.total_size:
-            error_msg = f"خطأ: انتهى التحميل قبل اكتمال الملف. ({format_size(final_downloaded)} / {format_size(self.total_size)})"
-            self._send_update({"task_id": self.task_id, "type": "error", "text": error_msg})
-            return
-
-        # دمج الملفات
-        if not self.combine_files():
-            self._send_update({"task_id": self.task_id, "type": "error", "text": "❌ فشل تجميع أجزاء الملف."})
-            return
-
-        # إرسال إشارة النجاح النهائية
-        self._send_update({"task_id": self.task_id, "type": "done", "text": f"✅ تم تحميل {self.filename} بنجاح"})
-        
-        # عند النجاح، قم بإزالة الملف من ملف الحالة
-        state = load_state()
-        state_key = os.path.normpath(os.path.join(self.download_folder, self.filename))
-        if state_key in state:
-            del state[state_key]
-            save_state(state)
-
     @Slot()
     def run(self):
         loop = asyncio.new_event_loop()
@@ -602,9 +464,6 @@ class TelethonDownloadWorker(QRunnable):
         state_key = os.path.normpath(output_path)
 
         try:            
-            # --- الإصلاح: تقليل عدد الاتصالات لتجنب تقييد السرعة من تيليجرام ---
-            # --- إصلاح: إزالة عدد محاولات الاتصال الزائد الذي يسبب أخطاء Timeout ---
-            # السماح للمكتبة باستخدام قيمها الافتراضية هو الخيار الأكثر استقراراً.
             client = TelegramClient(
                 StringSession(self.session_string), self.api_id, self.api_hash, loop=loop
             )
@@ -614,123 +473,27 @@ class TelethonDownloadWorker(QRunnable):
                 if not await client.is_user_authorized():
                     raise Exception("جلسة Telethon غير صالحة. يرجى تسجيل الدخول مرة أخرى.")
 
-                # Parse the custom URL: telethon://{channel_ref}/{message_id}
                 parts = self.telethon_url.replace("telethon://", "").split('/')
                 channel_ref, msg_id = parts[0], int(parts[1])
  
-                # Try resolving the channel/entity robustly
-                channel_entity = None
-                try:
-                    # First attempt: try treating channel_ref as username or id (get_entity accepts both usually)
-                    channel_entity = await client.get_entity(channel_ref)
-                except Exception:
-                    # Fallback: if channel_ref looks like an integer, try to find a matching dialog/entity
-                    try:
-                        channel_id = int(channel_ref)
-                        dialogs = await client.get_dialogs()  # get dialogs the client knows about
-                        for d in dialogs:
-                            ent = d.entity
-                            # some entities use .id, some use .channel_id attributes; check safely
-                            ent_id = getattr(ent, 'id', getattr(ent, 'channel_id', None))
-                            if ent_id == channel_id:
-                                channel_entity = ent
-                                break
-                    except Exception:
-                        channel_entity = None
-
-                if channel_entity is None:
-                    raise Exception("لم أستطع إيجاد كيان القناة. جرّب استخدام رابط القناة (t.me/...) أو اسم المستخدم (username) بدلاً من الـ ID الرقمي.")
-
-                # Get the message (get_messages may return Message or list)
+                channel_entity = await client.get_entity(channel_ref)
                 message = await client.get_messages(channel_entity, ids=msg_id)
-                # If it returned a list, take first
-                if isinstance(message, (list, tuple)):
-                    if not message:
-                        raise Exception("الرسالة غير موجودة.")
-                    message = message[0]
  
-                # --- تعديل: التحقق من وجود أي نوع من الوسائط والوصول إلى حجمه ---
                 if not message or not message.media:
                     raise Exception("لم يتم العثور على ملف أو صورة في الرسالة.")
 
-                # --- تعديل: تحديد طريقة التحميل بناءً على نوع وحجم الملف ---
-                # 1. الصور دائماً تستخدم التحميل البسيط لضمان الموثوقية.
-                # 2. الملفات التي حجمها أقل من 100 ميجابايت تستخدم التحميل البسيط للسرعة.
-                # 3. الملفات الأكبر من 100 ميجابايت تستخدم التحميل المقسم لدعم الإيقاف المؤقت والاستئناف.
-                
-                file_size = getattr(message.file, 'size', 0) if message.file else 0
-                SMALL_FILE_THRESHOLD = 100 * 1024 * 1024 # 100 MB
-
-                if message.photo or (message.file and file_size < SMALL_FILE_THRESHOLD):
-                    # --- المسار الأول: تحميل بسيط ومباشر للصور والملفات الصغيرة ---
-                    # لا يدعم الإيقاف المؤقت/الاستئناف.
-                    await client.download_media(
-                        message.media,
-                        file=output_path,
-                        progress_callback=self._simple_progress_callback
-                    )
-                    self._send_update({"task_id": self.task_id, "type": "progress", "percent": -1, "text": f"جاري تحميل الصورة {self.filename}..."})
-                else:
-                    # --- المسار الثاني: تحميل متقدم ومقسم للملفات الكبيرة ---
-                    # هذا يدعم الإيقاف المؤقت والاستئناف والسرعة العالية.
-                    state = load_state()
-                    state[state_key] = {"url": self.telethon_url, "type": "telethon", "filename": self.filename}
-                    save_state(state)
-
-                    self.total_size = file_size
-                    if self.total_size == 0:
-                        raise Exception("حجم الملف غير معروف، لا يمكن استخدام التحميل المقسم.")
-
-                    # --- الحل: استخدام Semaphore لضمان بدء الجزء التالي فور انتهاء جزء حالي ---
-                    # هذا يضمن استغلالاً كاملاً للاتصالات المتاحة (MAX_CONCURRENT_SEGMENTS).
-                    semaphore = asyncio.Semaphore(self.MAX_CONCURRENT_SEGMENTS)
-
-                    segment_size = self.total_size // self.NUM_SEGMENTS
-                    tasks = []
-                    for i in range(self.NUM_SEGMENTS):
-                        start = i * segment_size
-                        # --- إصلاح: التأكد من أن الجزء الأخير يغطي ما تبقى من الملف بالضبط ---
-                        end = self.total_size - 1 if i == self.NUM_SEGMENTS - 1 else start + segment_size - 1
-                        
-                        task = loop.create_task(self.download_segment(client, message, i, start, end, semaphore))
-                        tasks.append(task)
-
-                    progress_thread = threading.Thread(target=self.monitor_progress, daemon=True)
-                    self.worker_threads = tasks
-                    progress_thread.start()
-
-                    await asyncio.gather(*tasks)
-
-                # --- إصلاح: انتظار انتهاء خيط المراقبة بعد اكتمال جميع مهام التحميل ---
-                # هذا يضمن أن عمليات الدمج وإرسال إشارة الاكتمال النهائية تحدث.
-                if 'progress_thread' in locals() and progress_thread.is_alive():
-                    progress_thread.join()
-
-                self._send_update({"task_id": self.task_id, "type": "done", "text": f"✅ تم تحميل {self.filename} بنجاح"})
-                # On success, remove from state
-                state = load_state()
-                if state_key in state:
-                    del state[state_key]
-                    save_state(state)
+                await client.download_media(
+                    message.media,
+                    file=output_path,
+                    progress_callback=self._simple_progress_callback
+                )
 
             loop.run_until_complete(do_download())
+            self._send_update({"task_id": self.task_id, "type": "done", "text": f"✅ تم تحميل {self.filename} بنجاح"})
         except Exception as e:
-            # تجنب إرسال خطأ إذا كان الإلغاء هو السبب
             if not self.stop_flag.is_set():
                 self._send_update({"task_id": self.task_id, "type": "error", "text": f"❌ خطأ أثناء تحميل Telethon: {e}"})
-                # On cancellation, remove from state if it's a resumable download
-                state = load_state()
-                if state_key in state:
-                    del state[state_key]
-                    save_state(state)
-                # Cleanup part files on cancellation
-                for i in range(self.NUM_SEGMENTS):
-                    part_file = os.path.join(self.download_folder, f"{self.filename}.part{i}")
-                    try:
-                        if os.path.exists(part_file): os.remove(part_file)
-                    except OSError: pass   
         finally:
-            # Ensure disconnection and loop closure in all cases
             if client and client.is_connected():
                 client.disconnect()
             if loop.is_running(): loop.close()
