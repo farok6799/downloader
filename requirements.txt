@@ -1,15 +1,15 @@
 # --- Web Server Core ---
 fastapi
-uvicorn[standard] # Includes websockets, httptools, etc.
+uvicorn[standard]
 python-multipart
 
 # --- Downloaders & Networking ---
 yt-dlp
-cloudscraper # To bypass Cloudflare protection on some sites
+cloudscraper
 requests
 httpx
 aiofiles
-
+urllib3
 # --- GUI Framework (Required by main_pyside import) ---
 PySide6
 
@@ -20,7 +20,7 @@ openpyxl # Required by pandas for .xlsx files
 
 # --- Telegram & QR Code ---
 telethon
-qrcode[pil]
+qrcode
 
 # --- PDF & Arabic Text Generation (for Excel to PDF tool) ---
 reportlab
