@@ -1,0 +1,7 @@
+# --- Nixpacks Configuration for Railway ---
+
+[phases.setup]
+# Tell Nixpacks to install the 'ffmpeg' package from the Nix package manager
+# before building the rest of the application. This makes the `ffmpeg`
+# command available to our Python code.
+pkgs = ["ffmpeg"]
