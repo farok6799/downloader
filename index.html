@@ -585,7 +585,7 @@
                 const streamUrl = new URL(`${API_BASE_URL}/api/v1/stream`);
                 streamUrl.searchParams.append('url', url);
                 streamUrl.searchParams.append('filename', filename);
-                stream_url.searchParams.append('source', source);
+                streamUrl.searchParams.append('source', source);
                 if (formatId) streamUrl.searchParams.append('format_id', formatId);
 
                 try {
