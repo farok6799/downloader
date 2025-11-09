@@ -574,23 +574,41 @@
             };
 
             const startDownload = async () => {
-                if (!appState.currentDownloadDetails) return;
-                
-                const { url, source, filename } = appState.currentDownloadDetails;
-                const formatId = formatsSelect.value;
-                
-                // --- الحل: بناء رابط البث المباشر وفتحه ---
-                // هذا سيجعل المتصفح يتعامل مع التحميل مباشرة.
+                 if (!appState.currentDownloadDetails) return;
+
+                const { url, source, filename, details } = appState.currentDownloadDetails;
+                const formatId = formatsSelect.value || (details?.format_id);
+
+                // --- الحل الجذري: التعامل مع الفيديوهات التي تتطلب دمجاً ---
+                // الخطوة 1: محاولة التحميل المباشر أولاً
+                showStatus('جاري محاولة التحميل المباشر...', false);
                 const streamUrl = new URL(`${API_BASE_URL}/api/v1/stream`);
                 streamUrl.searchParams.append('url', url);
                 streamUrl.searchParams.append('filename', filename);
-                streamUrl.searchParams.append('source', source);
-                if (formatId) {
-                    streamUrl.searchParams.append('format_id', formatId);
+                stream_url.searchParams.append('source', source);
+                if (formatId) streamUrl.searchParams.append('format_id', formatId);
+
+                try {
+                    // نستخدم fetch بدلاً من window.location للتحقق من الاستجابة
+                    const response = await fetch(streamUrl.href);
+
+                    // الخطوة 2: التحقق من الاستجابة
+                    if (response.status === 418) {
+                        // الحالة الخاصة: الخادم يخبرنا أنه يجب استخدام WebSocket
+                        showStatus('التحميل المباشر غير مدعوم لهذا الفيديو. بدء التحميل في الخلفية...', false);
+                        // ننتقل إلى الخطة ب: بدء التحميل عبر WebSocket
+                        await startLegacyDownload(url, source, formatId);
+                    } else if (!response.ok) {
+                        // أي خطأ آخر
+                        const error = await response.json();
+                        throw new Error(error.detail || `فشل التحميل المباشر (Status: ${response.status})`);
+                    } else {
+                        // الحالة الناجحة: التحميل المباشر يعمل، نعيد توجيه المتصفح
+                        window.location.href = streamUrl.href;
+                    }
+                } catch (error) {
+                    showStatus(`❌ خطأ: ${error.message}`, true);
                 }
-                
-                // فتح الرابط الجديد، مما يؤدي إلى بدء التحميل في المتصفح
-                window.location.href = streamUrl.href;
             };
 
             const createDownloadItem = (taskId, filename) => {
