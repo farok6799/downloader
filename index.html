@@ -85,6 +85,30 @@
         }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
+
+        /* --- جديد: تصميم متجاوب (Responsive Design) --- */
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem 0; /* تقليل الهامش العلوي والسفلي */
+            }
+            .container {
+                width: 95%; /* زيادة عرض الحاوية لتناسب الشاشة */
+                padding: 1rem; /* تقليل الهامش الداخلي */
+            }
+            h1 {
+                font-size: 1.5rem; /* تصغير حجم العنوان الرئيسي */
+            }
+            .input-group {
+                flex-direction: column; /* جعل حقل الإدخال والزر تحت بعضهما */
+            }
+            .tab-buttons {
+                flex-wrap: wrap; /* السماح للأزرار بالالتفاف لسطر جديد */
+            }
+            /* جعل مدير تيليجرام عمودياً في الشاشات الصغيرة */
+            #telegram-panel > div:last-of-type {
+                flex-direction: column;
+            }
+        }
     </style>
 </head>
 <body>
