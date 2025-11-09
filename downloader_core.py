@@ -908,14 +908,20 @@ class YTDLRunner(threading.Thread):
         cleanup_thread = threading.Thread(target=background_cleanup, daemon=True, name=f"Cleanup-YTDL-{self.task_id}")
         cleanup_thread.start()
 
-def get_yt_dlp_info(url):
+def get_yt_dlp_info(url, settings=None):
     if not YTDLP_AVAILABLE: return None, "مكتبة yt-dlp غير مثبتة."
     
+    settings = settings or {}
     # Custom logger to capture warnings and errors from yt-dlp.
     class YTDLLogger:
         def __init__(self):
             self.warnings = []
             self.errors = []
+        def debug(self, msg):
+            # تجاهل رسائل تصحيح الأخطاء الطويلة المتعلقة بـ cookies
+            if 'cookie' in msg.lower():
+                return
+            pass            
         def debug(self, msg): pass
         def info(self, msg): pass
         def warning(self, msg): self.warnings.append(msg)
@@ -930,6 +936,12 @@ def get_yt_dlp_info(url):
         'quiet': True, 'noplaylist': True, 'nocheckcertificate': True,
         'skip_download': True, 'logger': logger
     }
+
+    # --- الحل: إضافة دعم ملفات تعريف الارتباط (Cookies) ---
+    # هذا يحل مشكلة "Sign in to confirm you’re not a bot" من يوتيوب.
+    cookies_file = settings.get("youtube_cookies_path")
+    if cookies_file and os.path.exists(cookies_file):
+        base_opts['cookies'] = cookies_file
 
     # --- First attempt: Standard info extraction ---
     try:
