@@ -408,8 +408,6 @@ async def stream_download(url: str, filename: str, source: str, format_id: str =
         # --- الحل: استخدام yt-dlp لجلب رابط التحميل المباشر فقط ---
         # هذا أسرع بكثير من تحميل الملف على الخادم أولاً
         ydl_opts = {
-            # --- تعديل: طلب أفضل جودة فيديو وصوت بشكل منفصل ---
-            # هذا يضمن الحصول على أفضل جودة ممكنة، وسيتم دمجها تلقائياً إذا لزم الأمر.
             'format': format_id if format_id else 'bestvideo+bestaudio/best',
             'quiet': True,
             'noplaylist': True,
@@ -417,18 +415,33 @@ async def stream_download(url: str, filename: str, source: str, format_id: str =
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(url, download=False)
-                # --- تعديل: الحصول على رابط التحميل المباشر الذي وجده yt-dlp ---
-                direct_url = info.get('url')
-                if not direct_url:
-                    raise HTTPException(status_code=500, detail="فشل yt-dlp في استخراج رابط التحميل المباشر.")
-                
-                # --- الحل الجذري: إعادة توجيه المتصفح إلى الرابط المباشر ---
-                # هذا يخبر المتصفح "اذهب وحمل من هذا الرابط" بدلاً من أن يقوم الخادم بالتحميل.
-                # نستخدم استجابة خاصة (RedirectResponse) لهذا الغرض.
-                from fastapi.responses import RedirectResponse
-                return RedirectResponse(url=direct_url)
+
+                # --- الحل الجذري: التحقق مما إذا كان الفيديو يتطلب دمجاً ---
+                # إذا كان هناك 'requested_formats'، فهذا يعني أن yt-dlp سيقوم بدمج ملفين (فيديو + صوت).
+                # في هذه الحالة، لا يوجد رابط مباشر واحد، ويجب على الخادم القيام بالتحميل.
+                if info.get('requested_formats'):
+                    # لا يمكن إعادة التوجيه، لذا نرفع استثناءً خاصاً ليتم التعامل معه
+                    # في الواجهة الأمامية لبدء التحميل عبر WebSocket.
+                    raise HTTPException(
+                        status_code=418, # I'm a teapot: رمز غير قياسي للإشارة إلى حالة خاصة
+                        detail="يتطلب هذا الفيديو دمجاً على الخادم. يجب استخدام التحميل عبر WebSocket."
+                    )
+                else:
+                    # إذا لم يكن هناك دمج، فهذا يعني وجود رابط مباشر واحد.
+                    direct_url = info.get('url')
+                    if not direct_url:
+                        # هذه الحالة تحدث إذا فشل yt-dlp تماماً في العثور على أي رابط.
+                        raise HTTPException(status_code=500, detail="فشل yt-dlp في استخراج رابط التحميل المباشر.")
+                    
+                    # --- الطريقة السريعة: إعادة توجيه المتصفح إلى الرابط المباشر ---
+                    # هذا يخبر المتصفح "اذهب وحمل من هذا الرابط" بدلاً من أن يقوم الخادم بالتحميل.
+                    from fastapi.responses import RedirectResponse
+                    return RedirectResponse(url=direct_url)
 
         except Exception as e:
+            # إذا كان الخطأ هو الذي أطلقناه يدوياً، أعد إرساله كما هو.
+            if isinstance(e, HTTPException) and e.status_code == 418:
+                raise e
             raise HTTPException(status_code=500, detail=f"خطأ من yt-dlp: {e}")
 
     raise HTTPException(status_code=400, detail="مصدر التحميل غير مدعوم للبث المباشر.")
