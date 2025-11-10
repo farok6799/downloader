@@ -2356,7 +2356,7 @@ class MainWindow(QMainWindow):
         title = info.get('title', f'download_{task_id}')
 
         # إنشاء العامل
-        worker = YTDLDownloadWorker(task_id, url, self.download_folder, format_id, audio_only)
+        worker = YTDLDownloadWorker(task_id, url, self.download_folder, format_id, audio_only, settings=self.settings)
 
         # إنشاء الواجهة
         widget = DownloadTaskWidget(title, task_id, worker)

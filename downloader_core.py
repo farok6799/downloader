@@ -553,13 +553,14 @@ class DownloadTask(threading.Thread):
 
 class YTDLRunner(threading.Thread):
     """A thread to run a yt-dlp download process and report progress via a queue."""
-    def __init__(self, task_id, url, download_folder, update_queue=None, format_id=None, audio_only=False, update_callback=None, **kwargs):
+    def __init__(self, task_id, url, download_folder, update_queue=None, format_id=None, audio_only=False, update_callback=None, settings=None, **kwargs):
         super().__init__(daemon=True, **kwargs)
         self.task_id = task_id
         self.url = url
         self.download_folder = download_folder
         self.update_queue = update_queue
         self.update_callback = update_callback
+        self.settings = settings or {} # --- جديد: تخزين قاموس الإعدادات ---
         self.format_id = format_id
         self.audio_only = audio_only
         self.total_size = 0 # --- إصلاح: إضافة متغير لتخزين الحجم الكلي ---
@@ -749,23 +750,25 @@ class YTDLRunner(threading.Thread):
                     'postprocessor_args': {'Merger': ['-movflags', 'faststart']},
                     'continuedl': True,
                     }
+                
+                # --- الحل الجذري: تمرير ملفات تعريف الارتباط إلى عامل التحميل ---
+                # هذا يحل أخطاء انتهاء صلاحية الروابط المؤقتة من يوتيوب وغيرها.
+                cookies_file = self.settings.get("youtube_cookies_path")
+                if cookies_file and os.path.exists(cookies_file):
+                    ydl_opts['cookies'] = cookies_file
+                
+                # --- NEW: Specific handling for Threads URLs ---
+                if "threads.net" in self.url or "threads.com" in self.url:
+                    # Ensure yt-dlp uses the Instagram extractor with appropriate options
+                    ydl_opts['extractor_args'] = {
+                        'instagram': {
+                            'lang': 'en', # Use English to avoid localization issues
+                        }
+                    }
+                    # Explicitly request a video format that can be merged to mp4
+                    ydl_opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
 
 
-            # --- الحل الجذري لمشكلة TikTok: محاولة التحميل المباشر كخطة بديلة ---
-            is_tiktok_url = 'tiktok.com' in self.url
-            if is_tiktok_url:
-                # --- إصلاح: تخزين آخر معلومات تم جمعها لاستخدامها عند الإلغاء ---
-                try:
-                    with yt_dlp.YoutubeDL({**ydl_opts, 'outtmpl': os.path.join(self.download_folder, info_dict.get('title', 'video') + '.%(ext)s')}) as ydl:
-
-                        ydl.download([self.url])
-                    # إذا نجح، اخرج من الحلقة
-                    break
-                except Exception as ytdl_error:
-                    # إذا فشل yt-dlp، جرب الطريقة اليدوية
-                    self._manual_tiktok_download()
-                    # سواء نجحت الطريقة اليدوية أو فشلت، اخرج من الحلقة لأننا حاولنا كل شيء
-                    break
 
             # --- المنطق الأصلي للمواقع الأخرى ---
             try:
@@ -907,16 +910,20 @@ class YTDLRunner(threading.Thread):
 
         cleanup_thread = threading.Thread(target=background_cleanup, daemon=True, name=f"Cleanup-YTDL-{self.task_id}")
         cleanup_thread.start()
-
-def get_yt_dlp_info(url, settings=None):
+def get_yt_dlp_info(url, settings={}):
     if not YTDLP_AVAILABLE: return None, "مكتبة yt-dlp غير مثبتة."
     
-    settings = settings or {}
+
     # Custom logger to capture warnings and errors from yt-dlp.
     class YTDLLogger:
         def __init__(self):
             self.warnings = []
             self.errors = []
+        def debug(self, msg):
+            # تجاهل رسائل تصحيح الأخطاء الطويلة المتعلقة بـ cookies
+            if 'cookie' in msg.lower():
+                return
+            pass            
         def debug(self, msg):
             # تجاهل رسائل تصحيح الأخطاء الطويلة المتعلقة بـ cookies
             if 'cookie' in msg.lower():
@@ -949,6 +956,12 @@ def get_yt_dlp_info(url, settings=None):
             info = ydl.extract_info(url, download=False)
             if info:
                 return info, None # Success on the first try
+            # --- NEW: Explicitly check for HTML extension for video sources ---
+            # If yt-dlp returns HTML, it means it failed to find a video.
+            # This prevents web_main.py from thinking it's a valid video file.
+            if info.get('ext') == 'html' and any(domain in url for domain in ['youtube.com', 'youtu.be', 'facebook.com', 'twitter.com', 'x.com', 'instagram.com', 'tiktok.com', 'threads.net', 't.me/s/']):
+                return None, "yt-dlp فشل في استخراج الفيديو. قد يكون الرابط غير صالح أو خاص."
+
     except yt_dlp.utils.DownloadError as e:
         # Check if the error is the specific "no video" error for Instagram.
         # If so, we'll fall through to the next attempt. Otherwise, it's a real error.
@@ -988,6 +1001,10 @@ def get_yt_dlp_info(url, settings=None):
     except Exception as e:
         # Return the most relevant error from the logger if available
         if logger.errors:
+            # --- جديد: طباعة رسائل الخطأ من yt-dlp في سجل الخادم ---
+            # هذا يساعد في تتبع المشاكل بشكل أفضل.
+            for err in logger.errors:
+                print(f"yt-dlp error: {err}")
             return None, logger.errors[0]
         return None, str(e)
 
@@ -1226,77 +1243,6 @@ class FileRepairWorker(threading.Thread):
         except Exception as e:
             if self.update_callback:
                 self.update_callback({"status": "error", "message": f"❌ خطأ غير متوقع: {e}"})
-
-def get_yt_dlp_info(url):
-    if not YTDLP_AVAILABLE: return None, "مكتبة yt-dlp غير مثبتة."
-    
-    # Custom logger to capture warnings and errors from yt-dlp.
-    class YTDLLogger:
-        def __init__(self):
-            self.warnings = []
-            self.errors = []
-        def debug(self, msg): pass
-        def info(self, msg): pass
-        def warning(self, msg): self.warnings.append(msg)
-        def error(self, msg):
-            # yt-dlp sometimes prefixes errors with "ERROR: ". We can strip that.
-            if msg.startswith('ERROR: '):
-                msg = msg[7:]
-            self.errors.append(msg)
-
-    logger = YTDLLogger()
-    base_opts = {
-        'quiet': True, 'noplaylist': True, 'nocheckcertificate': True,
-        'skip_download': True, 'logger': logger
-    }
-
-    # --- First attempt: Standard info extraction ---
-    try:
-        with yt_dlp.YoutubeDL(base_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            if info:
-                return info, None # Success on the first try
-    except yt_dlp.utils.DownloadError as e:
-        # Check if the error is the specific "no video" error for Instagram.
-        # If so, we'll fall through to the next attempt. Otherwise, it's a real error.
-        if "There is no video in this post" not in str(e):
-            return None, str(e)
-    except Exception as e:
-        return None, str(e)
-
-    # --- Second attempt (if first failed): For Instagram images ---
-    # This is triggered if the first attempt failed with "no video" error.
-    # We try again, telling yt-dlp not to look for videos.
-    if any("There is no video in this post" in err for err in logger.errors):
-        try:
-            image_opts = base_opts.copy()
-            # This option is not a standard yt-dlp option, but we can simulate it
-            # by how we handle the result. The key is that the first attempt failed.
-            # The logic in main_pyside.py already handles image-only results.
-            # Let's re-run with the same options, but check the logger output.
-            with yt_dlp.YoutubeDL(base_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                if info:
-                    return info, None
-        except Exception as e:
-            # If this also fails, return the original error.
-            return None, str(e)
-
-    # --- Final fallback: If info is still None, check captured logs for a clear message ---
-    try:
-        with yt_dlp.YoutubeDL(base_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            if not info:
-                for w in logger.warnings:
-                    if 'returned nothing' in w:
-                        return None, "لم يتم العثور على فيديو في الرابط. تأكد أن الرابط عام وصحيح."
-                return None, "فشل استخراج المعلومات. قد يكون الرابط غير مدعوم أو خاص."
-            return info, None
-    except Exception as e:
-        # Return the most relevant error from the logger if available
-        if logger.errors:
-            return None, logger.errors[0]
-        return None, str(e)
 
 def get_yt_dlp_playlist_info(url):
     """
