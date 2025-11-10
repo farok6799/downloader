@@ -154,16 +154,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- الحل الجذري والنهائي: دالة مركزية لتعديل الروابط ---
-# هذه الدالة تحاكي تماماً المنطق الموجود في البرنامج المكتبي.
-def prepare_url(url: str) -> str:
-    """ينظف ويعالج الرابط قبل إرساله إلى أي أداة تحليل."""
-    # 1. التعامل مع روابط Threads بإضافة /embed
-    if "threads.net" in url or "threads.com" in url:
-        if not url.endswith('/embed'):
-            url = url.split('?')[0].split('&')[0] + '/embed'
-    return url
-
 # --- مدير اتصالات WebSocket ---
 class ConnectionManager:
     def __init__(self):
@@ -226,8 +216,7 @@ async def fetch_details(request: UrlRequest):
     يستقبل هذا الـ endpoint رابطاً، ويحاول جلب اسم الملف وحجمه.
     يستخدم نفس الدوال الموجودة في برنامجك المكتبي.
     """
-    # --- الحل: استدعاء الدالة المركزية لتجهيز الرابط أولاً ---
-    url = prepare_url(request.url)
+    url = request.url
 
     # --- تحصين: رفض الروابط غير الصالحة (مثل blob:) مبكراً ---
     if not url.lower().startswith(('http://', 'https://')):
@@ -249,21 +238,18 @@ async def fetch_details(request: UrlRequest):
 
     # تحديد إذا كان الرابط لموقع مثل يوتيوب أم رابط مباشر
     # --- تعديل: إضافة t.me/s/ للروابط الخدمية (القنوات العامة) ---
-    # --- جديد: إضافة threads و x.com ---
     is_service_url = any(domain in url for domain in [
         'youtube.com', 'youtu.be', 'facebook.com', 
-        'twitter.com', 'x.com', 'instagram.com', 'tiktok.com',
-        'threads.net', 't.me/s/' # القنوات العامة فقط
+        'twitter.com', 'instagram.com', 'tiktok.com',
+        't.me/s/' # القنوات العامة فقط
     ])
 
     if is_service_url:
-        info, error = get_yt_dlp_info(url, SETTINGS)
+        info, error = get_yt_dlp_info(url)
         if error:
             raise HTTPException(status_code=400, detail=f"فشل جلب المعلومات من yt-dlp: {error}")
         return {
-            # --- تحسين: استخدام اسم الملف من yt-dlp إذا كان متاحاً ---
-            # هذا يعطي أسماء ملفات أفضل لـ Instagram و TikTok
-            "filename": info.get('filename', info.get('title', 'unknown_video')),
+            "filename": info.get('title', 'unknown_video'),
             "total_size": info.get('filesize') or info.get('filesize_approx'),
             "source": "yt-dlp",
             "details": info
@@ -277,6 +263,79 @@ async def fetch_details(request: UrlRequest):
             "total_size": total_size,
             "source": "direct"
         }
+
+# --- 2. واجهة برمجة التطبيقات (API) لبدء التحميل ---
+class DownloadRequest(BaseModel):
+    url: str
+    client_id: str
+    source: str # 'direct' or 'yt-dlp'
+    internal_url: str = None # --- جديد: لاستقبال الرابط الداخلي من الواجهة ---
+    format_id: str = None
+    audio_only: bool = False
+
+@app.post("/api/v1/download", summary="بدء عملية تحميل جديدة")
+async def start_download_legacy(request: DownloadRequest):
+    """
+    يبدأ عملية تحميل في الخلفية.
+    يستخدم WebSockets لإرسال تحديثات التقدم.
+    """
+    # --- الحل: استخدام client_id من الطلب كمعرف فريد للمهمة ---
+    # هذا يضمن أن الواجهة الأمامية والخلفية يتفقان على نفس المعرف.
+    task_id = request.client_id
+
+    # --- تحسين: استخدام دالة callback موحدة لإرسال التحديثات ---
+    loop = asyncio.get_running_loop()
+    def progress_callback(data):
+        # --- الحل: إرسال التحديثات إلى client_id الخاص باتصال WebSocket ---
+        # المُعرّف الذي تم إنشاؤه في الواجهة (`task_id`) يُستخدم فقط لتعريف عنصر التحميل.
+        # أما المُعرّف الذي يُستخدم لإرسال الرسائل عبر WebSocket فهو مُعرّف الاتصال نفسه.
+        # بما أننا لا نمرر معرف الاتصال الأصلي، سنفترض أن task_id يحتوي على الجزء الأول منه.
+        websocket_client_id = task_id.split('-')[0] + '-' + task_id.split('-')[1] + '-' + task_id.split('-')[2]
+        asyncio.run_coroutine_threadsafe(manager.send_json(websocket_client_id, data), loop)
+
+    worker = None
+    if request.source == 'yt-dlp':
+        if not YTDLP_AVAILABLE:
+            raise HTTPException(status_code=500, detail="مكتبة yt-dlp غير مثبتة على الخادم.")
+        
+        # تعديل YTDLRunner ليقبل دالة callback
+        # هذا يتطلب تعديل YTDLRunner في downloader_core.py
+        worker = YTDLRunner(
+            task_id=task_id,
+            url=request.url,
+            download_folder=SETTINGS['download_folder'],
+            update_callback=progress_callback,
+            format_id=request.format_id,
+            audio_only=request.audio_only
+        )
+    elif request.source == 'direct':
+        # جلب التفاصيل مرة أخرى للتأكد من صحتها قبل البدء
+        filename, total_size, error = get_download_details(request.url)
+        if error:
+            raise HTTPException(status_code=400, detail=f"فشل التحقق من الرابط المباشر: {error}")
+
+        filepath = find_unique_filepath(SETTINGS['download_folder'], filename)
+
+        worker = DownloadTask(
+            task_id=task_id,
+            url=request.url,
+            filepath=filepath,
+            total_size=total_size,
+            # --- الحل: تمرير دالة الـ callback مباشرة ---
+            # هذا يوحد طريقة إرسال التحديثات لجميع أنواع التحميل.
+            update_callback=progress_callback,
+        )
+    else:
+        raise HTTPException(status_code=400, detail="مصدر التحميل غير معروف.")
+
+    # --- الحل: تشغيل الخيط مباشرة بدلاً من استخدام BackgroundTasks ---
+    # هذا يضمن أن الخيط يعمل في سياق يمكنه الوصول إلى حلقة الأحداث
+    # بشكل صحيح لإرسال تحديثات WebSocket.
+    active_workers[task_id] = worker
+    worker.start() # استخدام .start() بدلاً من .run() لتشغيله في خيط جديد
+
+    # لا نحتاج إلى cleanup_task هنا لأن العامل سيتم تنظيفه عند الإلغاء أو الانتهاء
+    return {"status": "success", "message": f"بدأ تحميل الرابط: {request.url}"}
 
 async def get_telegram_post_details_async(url: str, tg_settings: dict) -> dict:
     """
@@ -317,89 +376,117 @@ async def get_telegram_post_details_async(url: str, tg_settings: dict) -> dict:
             "internal_url": url # نستخدم الرابط الأصلي لأنه مدعوم مباشرة
         }
 
-# --- 2. واجهة برمجة التطبيقات (API) لبدء التحميل (النسخة الجديدة والمحسّنة) ---
-class DownloadRequest(BaseModel):
-    url: str
-    filename: str
-    source: str # 'direct' or 'yt-dlp' or 'telethon'
-    format_id: str = None
-    audio_only: bool = False
-
-@app.post("/api/v1/download", summary="بدء عملية تحميل جديدة (بث مباشر للمتصفح)")
-async def start_download(request: DownloadRequest):
+# --- جديد: نقطة نهاية لبث التحميل مباشرة إلى المتصفح ---
+@app.get("/api/v1/stream", summary="بث ملف للتحميل المباشر في المتصفح")
+async def stream_download(url: str, filename: str, source: str, format_id: str = None):
     """
-    يبدأ عملية تحميل عن طريق بث محتوى الملف مباشرة إلى المتصفح.
-    هذا هو الحل النهائي لمشكلة تحميل الملفات على الخادم.
+    يبث محتوى الملف مباشرة إلى المتصفح لتفعيل التحميل الأصلي.
     """
-    url_to_download = prepare_url(request.url)
-    final_url = url_to_download
-    
-    # إذا كان المصدر yt-dlp، نحتاج إلى استخراج رابط التحميل الفعلي أولاً
-    if request.source == 'yt-dlp':
-        if not YTDLP_AVAILABLE:
-            raise HTTPException(
-                status_code=500, 
-                detail="مكتبة yt-dlp غير مثبتة على الخادم.",
-                headers={'Access-Control-Allow-Origin': '*'} # --- إصلاح CORS ---
-            )
-        
-        # استخراج المعلومات للحصول على رابط التحميل المباشر
-        info, error = get_yt_dlp_info(url_to_download, SETTINGS)
-        if error:
-            raise HTTPException(
-                status_code=500, 
-                detail=f"فشل yt-dlp في استخراج الرابط: {error}",
-                headers={'Access-Control-Allow-Origin': '*'} # --- إصلاح CORS ---
-            )
+    # --- جديد: التعامل مع بث ملفات تيليجرام ---
+    if source == 'telethon':
+        tg_settings = SETTINGS.get("telegram", {})
+        if not tg_settings.get("session_string"):
+            raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام.")
 
-        # البحث عن أفضل رابط بناءً على طلب المستخدم
-        target_format = None
-        if request.format_id:
-            for f in info.get('formats', []):
-                if f.get('format_id') == request.format_id:
-                    target_format = f
-                    break
-        
-        # إذا لم يتم العثور على صيغة محددة أو لم يتم طلبها، استخدم أفضل صيغة متاحة
-        if not target_format:
-            target_format = info
+        from telethon.sync import TelegramClient
+        from telethon.sessions import StringSession
 
-        final_url = target_format.get('url')
-        if not final_url:
-            raise HTTPException(
-                status_code=404, 
-                detail="لم يتمكن yt-dlp من العثور على رابط تحميل صالح.",
-                headers={'Access-Control-Allow-Origin': '*'} # --- إصلاح CORS ---
-            )
+        async def telegram_stream_generator():
+            """
+            مولّد (Generator) غير متزامن يقوم بجلب أجزاء الملف من تيليجرام وبثها.
+            """
+            client = TelegramClient(StringSession(tg_settings["session_string"]), tg_settings["api_id"], tg_settings["api_hash"])
+            try:
+                await client.start(phone=tg_settings.get("phone"))
 
-    # الآن، لدينا final_url سواء كان من yt-dlp أو رابط مباشر
-    # يمكننا الآن بثه إلى المستخدم
+                # --- تعديل: التعامل مع رابط t.me مباشر ---
+                message = await client.get_messages(url, ids=None)
 
-    try:
-        # استخدام requests لبدء جلب الملف كـ stream
-        # --- إصلاح: استخدام final_url الذي تم استخراجه ---
-        response = requests.get(final_url, stream=True, allow_redirects=True, timeout=60)
-        response.raise_for_status()
+                if not message or not message.media:
+                    raise Exception("لم يتم العثور على وسائط في الرسالة.")
 
-        # إعداد الترويسات اللازمة لتفعيل التحميل في المتصفح
+                # بث محتوى الملف على شكل أجزاء
+                async for chunk in client.iter_download(message.media):
+                    yield chunk
+
+            except Exception as e:
+                # في حالة حدوث خطأ، يمكننا تسجيله ولكن لا يمكننا إرسال استجابة HTTP أخرى
+                print(f"خطأ أثناء بث تيليجرام: {e}")
+            finally:
+                await client.disconnect()
+
         headers = {
-            # --- إصلاح: استخدام اسم الملف من الطلب ---
-            'Content-Disposition': f'attachment; filename="{request.filename}"',
+            'Content-Disposition': f'attachment; filename="{filename}"',
             'Content-Type': 'application/octet-stream',
         }
-        # تمرير حجم الملف إذا كان معروفاً
-        if 'Content-Length' in response.headers:
-            headers['Content-Length'] = response.headers['Content-Length']
+        # إرجاع StreamingResponse الذي يستخدم المولّد لبث البيانات
+        return StreamingResponse(telegram_stream_generator(), headers=headers)
 
-        # إرجاع StreamingResponse الذي يقوم ببث المحتوى
-        return StreamingResponse(response.iter_content(chunk_size=8192), headers=headers)
-    
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(
-            status_code=500, 
-            detail=f"فشل الاتصال بالرابط المصدر: {e}",
-            headers={'Access-Control-Allow-Origin': '*'} # --- إصلاح CORS ---
-        )
+    if source == 'direct':
+        try:
+            # استخدام requests لبدء جلب الملف كـ stream
+            response = requests.get(url, stream=True, allow_redirects=True, timeout=30)
+            response.raise_for_status()
+
+            # إعداد الترويسات اللازمة لتفعيل التحميل في المتصفح
+            headers = {
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Type': 'application/octet-stream',
+            }
+            # تمرير حجم الملف إذا كان معروفاً
+            if 'Content-Length' in response.headers:
+                headers['Content-Length'] = response.headers['Content-Length']
+
+            # إرجاع StreamingResponse الذي يقوم ببث المحتوى
+            return StreamingResponse(response.iter_content(chunk_size=8192), headers=headers)
+
+        except requests.exceptions.RequestException as e:
+            raise HTTPException(status_code=500, detail=f"فشل الاتصال بالرابط المصدر: {e}")
+
+    elif source == 'yt-dlp':
+        if not YTDLP_AVAILABLE:
+            raise HTTPException(status_code=501, detail="مكتبة yt-dlp غير مثبتة على الخادم.")
+
+        # --- الحل: استخدام yt-dlp لجلب رابط التحميل المباشر فقط ---
+        # هذا أسرع بكثير من تحميل الملف على الخادم أولاً
+        ydl_opts = {
+            'format': format_id if format_id else 'bestvideo+bestaudio/best',
+            'quiet': True,
+            'noplaylist': True,
+        }
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+
+                # --- الحل الجذري: التحقق مما إذا كان الفيديو يتطلب دمجاً ---
+                # إذا كان هناك 'requested_formats'، فهذا يعني أن yt-dlp سيقوم بدمج ملفين (فيديو + صوت).
+                # في هذه الحالة، لا يوجد رابط مباشر واحد، ويجب على الخادم القيام بالتحميل.
+                if info.get('requested_formats'):
+                    # لا يمكن إعادة التوجيه، لذا نرفع استثناءً خاصاً ليتم التعامل معه
+                    # في الواجهة الأمامية لبدء التحميل عبر WebSocket.
+                    raise HTTPException(
+                        status_code=418, # I'm a teapot: رمز غير قياسي للإشارة إلى حالة خاصة
+                        detail="يتطلب هذا الفيديو دمجاً على الخادم. يجب استخدام التحميل عبر WebSocket."
+                    )
+                else:
+                    # إذا لم يكن هناك دمج، فهذا يعني وجود رابط مباشر واحد.
+                    direct_url = info.get('url')
+                    if not direct_url:
+                        # هذه الحالة تحدث إذا فشل yt-dlp تماماً في العثور على أي رابط.
+                        raise HTTPException(status_code=500, detail="فشل yt-dlp في استخراج رابط التحميل المباشر.")
+                    
+                    # --- الطريقة السريعة: إعادة توجيه المتصفح إلى الرابط المباشر ---
+                    # هذا يخبر المتصفح "اذهب وحمل من هذا الرابط" بدلاً من أن يقوم الخادم بالتحميل.
+                    from fastapi.responses import RedirectResponse
+                    return RedirectResponse(url=direct_url)
+
+        except Exception as e:
+            # إذا كان الخطأ هو الذي أطلقناه يدوياً، أعد إرساله كما هو.
+            if isinstance(e, HTTPException) and e.status_code == 418:
+                raise e
+            raise HTTPException(status_code=500, detail=f"خطأ من yt-dlp: {e}")
+
+    raise HTTPException(status_code=400, detail="مصدر التحميل غير مدعوم للبث المباشر.")
 
 # --- 3. واجهة برمجة التطبيقات (API) لإلغاء التحميل ---
 @app.post("/api/v1/cancel/{client_id}", summary="إلغاء تحميل نشط")
@@ -500,7 +587,7 @@ async def get_telegram_dialogs():
     if not tg_settings.get("session_string"):
         raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام. يرجى تسجيل الدخول من الإعدادات أولاً.")
 
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string")) # type: ignore
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string"))
     
     try:
         # FastAPI يتعامل مع الدوال غير المتزامنة (async) بشكل ممتاز
@@ -529,7 +616,7 @@ async def get_telegram_files(dialog_id: int):
     if not tg_settings.get("session_string"):
         raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام.")
 
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string")) # type: ignore
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string"))
 
     async def file_generator():
         """مولّد غير متزامن يرسل كل ملف كسطر JSON."""
@@ -747,7 +834,7 @@ async def search_and_join_telegram_channel(request: UrlRequest):
     if not tg_settings.get("session_string"):
         raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام.")
 
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string")) # type: ignore
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string"))
     try:
         dialog_info = await manager.join_and_get_dialog(request.url)
         if dialog_info:
@@ -764,7 +851,7 @@ async def leave_telegram_channel(dialog_id: int):
     if not tg_settings.get("session_string"):
         raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام.")
 
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string")) # type: ignore
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string"))
     try:
         message = await manager.leave_channel(dialog_id)
         return {"status": "success", "message": message}
@@ -841,7 +928,7 @@ async def telegram_send_code(request: TelegramLoginRequest):
     يبدأ عملية تسجيل الدخول بإرسال كود تحقق إلى رقم الهاتف المحدد.
     """
     tg_settings = SETTINGS.get("telegram", {})
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"]) # type: ignore
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"])
     try:
         # run_async_from_sync لا يعمل بشكل جيد مع دوال تسجيل الدخول
         # لذا سنستخدم المنطق غير المتزامن مباشرة
@@ -857,7 +944,7 @@ async def telegram_submit_code(request: TelegramCodeRequest):
     إذا نجح، سيحفظ جلسة المستخدم.
     """
     tg_settings = SETTINGS.get("telegram", {})
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"]) # type: ignore
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"])
     try:
         session_string = await manager.sign_in(
             phone=request.phone,
@@ -883,7 +970,7 @@ async def telegram_submit_password(request: TelegramPasswordRequest):
     tg_settings = SETTINGS.get("telegram", {})
     # يفترض أن يكون المدير قد تم تهيئته من الخطوة السابقة
     # هذا النهج مبسط، في تطبيق حقيقي قد تحتاج إلى إدارة حالة العميل بشكل أفضل
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"]) # type: ignore
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"])
     
     # إعادة الاتصال بنفس العميل الذي طلب الكود
     # هذا الجزء معقد بدون إدارة جلسات المستخدمين، سنعتمد على أن العميل لا يزال موجوداً
