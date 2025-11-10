@@ -1,1200 +1,698 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mostafa Web Downloader</title>
-    <!-- Bootstrap CSS for styling -->
-    <!-- تم إزالة Bootstrap CSS للاعتماد على التصميم المخصص -->
-    <style>
-        /* --- تصميم مستوحى من index.html --- */
-        body {
-            background-color: #1e1f22;
-            color: #f2f3f5;
-            font-family: "Segoe UI", "Roboto", sans-serif;
-            margin: 0;
-            padding: 2rem 0;
-        }
-        .container {
-            background-color: #2b2d31;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            width: 90%;
-            max-width: 1000px; /* زيادة العرض قليلاً لمدير تيليجرام */
-            margin: auto;
-        }
-        h1 {
-            color: #5865f2;
-            text-align: center;
-            margin-bottom: 1.5rem;
-        }
-        .input-group {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 1rem;
-        }
-        input[type="text"], select {
-            flex-grow: 1;
-            padding: 12px;
-            border: 1px solid #1e1f22;
-            border-radius: 5px;
-            background-color: #1e1f22;
-            color: #f2f3f5;
-            font-size: 16px;
-        }
-        button {
-            background-color: #5865f2;
-            color: white;
-            padding: 0 24px;
-            border: none;
-            border-radius: 5px;
-            font-weight: bold;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-            flex-shrink: 0; /* منع الأزرار من التقلص */
-        }
-        button:hover {
-            background-color: #4e5bf0;
-        }
-        /* --- تصميم نظام التبويبات --- */
-        .tab-buttons {
-            display: flex;
-            border-bottom: 2px solid #1e1f22;
-            margin-bottom: 1.5rem;
-        }
-        .tab-button {
-            padding: 10px 20px;
-            cursor: pointer;
-            background-color: transparent;
-            border: none;
-            color: #b8bac0;
-            font-size: 16px;
-            font-weight: bold;
-        }
-        .tab-button.active {
-            color: #5865f2;
-            border-bottom: 2px solid #5865f2;
-        }
-        .tool-card {
-            background-color: #1e1f22;
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-        }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        /* --- جديد: تصميم متجاوب (Responsive Design) --- */
-        @media (max-width: 768px) {
-            body {
-                padding: 1rem 0; /* تقليل الهامش العلوي والسفلي */
-            }
-            .container {
-                width: 95%; /* زيادة عرض الحاوية لتناسب الشاشة */
-                padding: 1rem; /* تقليل الهامش الداخلي */
-            }
-            h1 {
-                font-size: 1.5rem; /* تصغير حجم العنوان الرئيسي */
-            }
-            .input-group {
-                flex-direction: column; /* جعل حقل الإدخال والزر تحت بعضهما */
-            }
-            .tab-buttons {
-                flex-wrap: wrap; /* السماح للأزرار بالالتفاف لسطر جديد */
-            }
-            /* جعل مدير تيليجرام عمودياً في الشاشات الصغيرة */
-            #telegram-panel > div:last-of-type {
-                flex-direction: column;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mostafa Unlocker Hub</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+    }
+    header {
+      width: 100%;
+      padding: 20px;
+      background-color: #1f1f1f;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    header img {
+      max-height: 120px;
+    }
+    h1 {
+      margin: 10px 0 5px;
+      font-size: 2em;
+    }
+    h2 {
+      font-weight: normal;
+      font-size: 1.2em;
+      color: #bbbbbb;
+    }
+    section {
+      max-width: 800px;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .contact, .live-tools, .coming-soon, .downloads {
+      margin-top: 20px;
+      background: #1f1f1f;
+      padding: 20px;
+      border-radius: 10px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .contact h3, .live-tools h3, .coming-soon h3, .downloads h3 {
+      margin-bottom: 10px;
+    }
+    a {
+      display: block;
+      color: #4fc3f7;
+      text-decoration: none;
+      margin: 5px 0;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 10px;
+    }
+    .live-tools a.button, .downloads a.button, #language-toggle {
+      display: inline-block;
+      margin: 5px;
+      padding: 10px 20px;
+      background-color: #1f1f1f;
+      border: 1px solid #00ffc3;
+      color: #00ffc3;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .live-tools a.button:hover, .downloads a.button:hover, #language-toggle:hover {
+      background-color: #00ffc3;
+      color: #000;
+    }
+    .live-tools a.button i, .downloads a.button i, .contact a i {
+        margin-right: 8px; /* Add space between icon and text */
+        width: 1.1em;      /* Helps align icons of different widths */
+        text-align: center;
+    }
+    .live-tools a.button img, .downloads a.button img {
+        margin-right: 8px;
+        width: 1.2em; height: 1.2em;
+        vertical-align: middle; /* Align icon with text */
+        text-align: center;
+    }
+    .coming-soon ul {
+        list-style: none;
+        padding-left: 0;
+    }
+    .coming-soon li i {
+        margin-right: 8px;
+        width: 1.2em;
+        color: #4fc3f7; /* Give icons a color */
+    }
+    
+    /* Tabs styling */
+    .tabs {
+      display: flex;
+      flex-direction: column; /* Stack items vertically */
+      align-items: center;    /* Center items horizontally */
+      margin: 20px 0;
+      width: 100%;
+    }
+    .tab-btn, .tab-btn.active {
+      padding: 10px 20px;
+      background-color: #1f1f1f;
+      border: 1px solid #00ffc3;
+      color: #00ffc3;
+      cursor: pointer;
+      font-size: 16px;
+      border-radius: 8px;
+      margin: 0 5px;
+      font-weight: bold;
+      transition: background-color 0.3s, color 0.3s;
+    }
+    .tab-btn:hover, .tab-btn.active {
+      background-color: #00ffc3;
+      color: #000;
+    }
+    .tab-buttons-container {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      max-width: 400px;
+      margin-bottom: 20px; /* Increased margin */
+    }
+    .tab-content {
+      display: none;
+      width: 100%;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* Services page styling */
+    .services-page {
+      direction: rtl;
+      text-align: right;
+    }
+    .services-page h1 {
+      color: #00d9ff;
+      margin-bottom: 10px;
+    }
+    .services-page p {
+      font-size: 18px;
+    }
+    .services-page table {
+      width: 100%;
+      margin-top: 30px;
+      border-collapse: collapse;
+    }
+    .services-page th, .services-page td {
+      border: 1px solid #444;
+      padding: 12px;
+      font-size: 16px;
+    }
+    .services-page th {
+      background-color: #1f1f1f;
+    }
+    .services-page tr:nth-child(even) {
+      background-color: #1a1a1a;
+    }
+    .services-page .contact {
+      margin-top: 40px;
+      font-size: 18px;
+    }
+    .services-page a {
+      color: #00d9ff;
+      text-decoration: none;
+    }
+    .services-page a:hover {
+      text-decoration: underline;
+    }
+    .services-page .notice {
+      margin-top: 40px;
+      font-size: 15px;
+      color: #bbbbbb;
+      border-top: 1px solid #333;
+      padding-top: 20px;
+    }
+    
+    /* Tool Categories Styling */
+    .tool-category {
+      margin-top: 25px;
+      border-top: 1px solid #333;
+      padding-top: 20px;
+    }
+    .tool-category h4 {
+      color: #4fc3f7;
+      margin-bottom: 15px;
+      font-size: 1.1em;
+    }
+  </style>
 </head>
 <body>
-    <div class="container mt-4">
-        <h1 class="text-center mb-4">🚀 Mostafa Web Downloader</h1>
-
-        <!-- Nav Tabs -->
-        <div class="tab-buttons">
-            <button class="tab-button active" onclick="openTab(event, 'downloader-panel')">⬇️ التحميلات</button>
-            <button class="tab-button" onclick="openTab(event, 'telegram-panel')">🗂️ مدير تيليجرام</button>
-            <button class="tab-button" onclick="openTab(event, 'tools-panel')">🧰 الأدوات</button>
-            <button class="tab-button" onclick="openTab(event, 'library-panel')">📚 المكتبة</button>
-            <button class="tab-button" onclick="openTab(event, 'log-panel')">📋 السجل</button>
-            <button class="tab-button" onclick="openTab(event, 'settings-panel')">⚙️ الإعدادات</button>
-        </div>
-
-        <!-- Tab Content -->
-        <div>
-            <!-- Downloader Panel -->
-            <div id="downloader-panel" class="tab-content active">
-                <h5>بدء تحميل جديد</h5>
-                <div class="input-group">
-                    <input type="text" id="url-input" placeholder="🔗 الصق رابط التحميل هنا...">
-                    <button type="button" id="fetch-button">🔍 فحص الرابط</button>
-                </div>
-                <div id="details-container" style="display: none; background-color: #1e1f22; padding: 1rem; border-radius: 5px; margin-bottom: 1rem;">
-                    <p><strong>اسم الملف:</strong> <span id="filename-span"></span></p>
-                    <p><strong>الحجم:</strong> <span id="filesize-span"></span></p>
-                    <div id="formats-container" style="display: none; margin-bottom: 1rem;">
-                        <label for="formats-select">اختر الجودة:</label>
-                        <select id="formats-select"></select>
-                    </div>
-                    <button id="start-download-button" style="background-color: #248046;">✅ بدء التحميل</button>
-                </div>
-                <div id="status-message" style="margin-top: 1rem;"></div>
-
-                <div id="download-list" style="margin-top: 2rem;">
-                    <h3>التحميلات النشطة</h3>
-                    <!-- Download items will be injected here -->
-                </div>
-            </div>
-
-            <!-- Telegram Manager Panel -->
-            <div id="telegram-panel" class="tab-content">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h5 style="margin: 0;">مدير ملفات تيليجرام</h5>
-                    <button id="refresh-dialogs-btn" style="background-color: #4f545c;">🔄 تحديث القنوات</button>
-                </div>
-                <div id="telegram-status" style="margin-bottom: 1rem;"></div>
-                <div style="display: flex; gap: 20px;">
-                    <!-- Dialogs Column -->
-                    <div style="flex: 1;">
-                        <h6>القنوات والمجموعات</h6>
-                        <div id="telegram-dialogs-list" style="height: 500px; overflow-y: auto; background-color: #1e1f22; border-radius: 5px; padding: 5px;">
-                            <!-- Dialogs will be injected here -->
-                        </div>
-                    </div>
-                    <!-- Files Column -->
-                    <div style="flex: 2;">
-                        <h6>الملفات في القناة المحددة</h6>
-                        <div id="telegram-files-list" style="height: 500px; overflow-y: auto; background-color: #1e1f22; border-radius: 5px; padding: 5px;">
-                            <!-- Files will be injected here -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tools Panel -->
-            <div id="tools-panel" class="tab-content">
-                <!-- Image Converter -->
-                <div class="tool-card">
-                    <h5>🖼️ محول صيغ الصور</h5>
-                    <input type="file" id="image-converter-input" accept="image/*">
-                    <select id="image-converter-format">
-                        <option value="PNG">PNG</option>
-                        <option value="JPG">JPG</option>
-                        <option value="WEBP">WEBP</option>
-                        <option value="ICO">ICO</option>
-                        <option value="BMP">BMP</option>
-                    </select>
-                    <button id="image-converter-btn">تحويل</button>
-                    <div id="image-converter-status" style="margin-top: 1rem;"></div>
-                </div>
-
-                <!-- Video Merger -->
-                <div class="tool-card">
-                    <h5>🔗 دمج فيديو وصوت</h5>
-                    <p>فيديو: <input type="file" id="video-merger-video-input" accept="video/*"></p>
-                    <p>صوت: <input type="file" id="video-merger-audio-input" accept="audio/*"></p>
-                    <button id="video-merger-btn">دمج</button>
-                    <div id="video-merger-status" style="margin-top: 1rem;"></div>
-                </div>
-
-                <!-- File Repair -->
-                <div class="tool-card">
-                    <h5>🛠️ إصلاح ملفات الفيديو</h5>
-                    <input type="file" id="file-repair-input" accept="video/*,audio/*">
-                    <p><input type="checkbox" id="file-repair-deep-checkbox"> <label for="file-repair-deep-checkbox">إصلاح عميق (أبطأ)</label></p>
-                    <button id="file-repair-btn">إصلاح</button>
-                    <div id="file-repair-status" style="margin-top: 1rem;"></div>
-                </div>
-
-                <!-- System Tools -->
-                <div class="tool-card">
-                    <h5>⚙️ أدوات النظام</h5>
-                    <div id="ffmpeg-tool-section">
-                        <!-- سيتم ملء هذا القسم ديناميكياً -->
-                    </div>
-                    <div id="ytdlp-tool-section" style="margin-top: 1rem;">
-                        <p>تحديث مكتبة التحميل (yt-dlp) لحل مشاكل التحميل من يوتيوب والمواقع الأخرى.</p>
-                        <button id="update-ytdlp-btn">🔄 تحديث yt-dlp</button>
-                        <div id="update-ytdlp-status" style="margin-top: 0.5rem;"></div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- Library Panel -->
-            <div id="library-panel" class="tab-content">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h5 style="margin: 0;">مكتبة الملفات المحملة</h5>
-                    <button id="refresh-library-btn" style="background-color: #4f545c;">🔄 تحديث</button>
-                </div>
-                <div id="library-list" style="height: 500px; overflow-y: auto; background-color: #1e1f22; border-radius: 5px; padding: 10px;">
-                    <!-- Library files will be injected here -->
-                </div>
-            </div>
-
-            <!-- Log Panel -->
-            <div id="log-panel" class="tab-content">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h5 style="margin: 0;">سجل التحميلات</h5>
-                    <div>
-                        <button id="refresh-log-btn" style="background-color: #4f545c;">🔄 تحديث</button>
-                        <button id="clear-log-btn" style="background-color: #da373c;">🗑️ مسح السجل</button>
-                    </div>
-                </div>
-                <div id="log-list" style="height: 500px; overflow-y: auto; background-color: #1e1f22; border-radius: 5px; padding: 10px;">
-                    <!-- Log entries will be injected here -->
-                </div>
-            </div>
-
-            <!-- Settings Panel -->
-            <div id="settings-panel" class="tab-content">
-                <h5>الإعدادات</h5>
-                <div id="settings-status" style="margin-bottom: 1rem;"></div>
-                <div class="tool-card">
-                    <h6>الإعدادات العامة</h6>
-                    <div style="margin-bottom: 1rem;">
-                        <label for="settings-download-folder">مجلد التحميلات:</label>
-                        <input type="text" id="settings-download-folder" style="width: 100%; box-sizing: border-box;">
-                    </div>
-                    <div style="margin-bottom: 1rem;">
-                        <label for="settings-max-downloads">الحد الأقصى للتحميلات المتزامنة:</label>
-                        <input type="number" id="settings-max-downloads" style="width: 100px;">
-                    </div>
-                    <button id="save-settings-btn">💾 حفظ الإعدادات</button>
-                </div>
-                <div class="tool-card">
-                    <h6>إعدادات تيليجرام</h6>
-                    <div id="telegram-login-status" style="margin-bottom: 1rem;"></div>
-                    <!-- قسم تسجيل الدخول (يظهر فقط إذا لم يتم تسجيل الدخول) -->
-                    <div id="telegram-login-section">
-                        <div id="tg-login-step-phone" style="margin-bottom: 1rem;">
-                            <label for="tg-phone-input">رقم الهاتف (بالصيغة الدولية):</label>
-                            <div class="input-group">
-                                <input type="text" id="tg-phone-input" placeholder="+201234567890">
-                                <button id="tg-send-code-btn">إرسال الرمز</button>
-                            </div>
-                        </div>
-                        <div id="tg-login-step-code" style="display: none; margin-bottom: 1rem;">
-                            <label for="tg-code-input">رمز التحقق:</label>
-                            <input type="text" id="tg-code-input" placeholder="أدخل الرمز الذي وصلك">
-                        </div>
-                        <div id="tg-login-step-password" style="display: none; margin-bottom: 1rem;">
-                            <label for="tg-password-input">كلمة مرور التحقق بخطوتين:</label>
-                            <input type="password" id="tg-password-input" placeholder="أدخل كلمة المرور">
-                        </div>
-                        <button id="tg-submit-btn" style="display: none;">✅ تأكيد</button>
-                    </div>
-                    <!-- قسم تسجيل الخروج (يظهر فقط بعد تسجيل الدخول) -->
-                    <div id="telegram-logout-section" style="display: none;">
-                        <p>أنت مسجل الدخول حالياً. <button id="tg-logout-btn" style="background-color: #da373c;">تسجيل الخروج</button></p>
-                    </div>
-                </div>
-            </div>
-
-        </div>
+  <header>
+    <img src="logo.png" alt="Mostafa Unlocker Logo" />
+    <h1 id="main-title">Mostafa Unlocker Hub</h1>
+    <h2 id="main-subtitle">Your All-in-One Software Solution</h2>
+  </header>
+  
+  <div class="tabs">
+    <div class="tab-buttons-container">
+      <button class="tab-btn active" onclick="openTab('home', event)" id="home-tab">Home</button>
+      <button class="tab-btn" onclick="openTab('services', event)" id="services-tab">Services</button>
     </div>
+    <button id="language-toggle" style="cursor: pointer; font-weight: bold;">English / العربية</button>    
+  </div>
+  
+  <div id="home" class="tab-content active">
+    <section>
+      <p id="welcome-text">
+        Welcome to Mostafa Unlocker Hub -- your trusted source for software solutions, tools, scripts, and online services for iPhone and Android devices.
+      </p>
 
-    <!-- Templates (No changes needed here, but CSS will be applied) -->
-    <template id="download-item-template">
-        <div class="download-item" style="background-color: #383a40; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-            <h6 class="card-title"></h6>
-            <p class="status-text" style="font-size: 0.9em; color: #b8bac0;"></p>
-            <div class="progress-bar-container" style="width: 100%; background-color: #1e1f22; border-radius: 5px; margin: 8px 0;">
-                <div class="progress-bar" style="width: 0%; height: 10px; background-color: #248046; border-radius: 5px; transition: width 0.2s ease-in-out;"></div>
-            </div>
-            <div style="margin-top: 10px;">
-                <button class="pause-btn" style="background-color: #f1c40f; color: black;">⏸️ إيقاف مؤقت</button>
-                <button class="resume-btn" style="display: none; background-color: #3498db;">▶️ استئناف</button>
-                <button class="cancel-btn" style="background-color: #da373c;">❌ إلغاء</button>
-            </div>
+      <div class="live-tools">
+        <h3 id="online-tools-title">🧪 Online Tools (Direct from Website)</h3>
+
+        <div class="tool-category">
+          <h4 id="category-stores">App Stores</h4>
+          <a class="button" href="intent://com.android.vending/#Intent;scheme=android-app;end" target="_blank" id="btn-play-store"><img src="playstore.png" alt="Play Store"> Open Play Store</a>
+          <a class="button" href="intent://com.sec.android.app.samsungapps/#Intent;scheme=android-app;end" target="_blank" id="btn-galaxy"><img src="samsung.png" alt="Galaxy Store"> Open Galaxy Store</a>
+          <a class="button" href="intent://com.heytap.market/#Intent;scheme=android-app;end" target="_blank" id="btn-oppo-market"><img src="oppo.png" alt="Oppo Market"> Open App Market (Oppo)</a>
+          <a class="button" href="intent://com.vivo.appstore/#Intent;scheme=android-app;end" target="_blank" id="btn-vivo-market"><img src="vivo.png" alt="Vivo Store"> Open App Store (Vivo)</a>
+          <a class="button" href="intent://com.xiaomi.mipicks/#Intent;scheme=android-app;end" target="_blank" id="btn-xiaomi-market"><img src="xiaomi.png" alt="Xiaomi Store"> Open App Store (Xiaomi)</a>
         </div>
-    </template>
 
-    <template id="telegram-dialog-template">
-         <div class="list-group-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 4px; margin-bottom: 5px; cursor: pointer;">
-            <img src="" style="margin-right: 10px; border-radius: 50%;" width="40" height="40">
-            <span class="dialog-name" style="flex-grow: 1;"></span>
-            <button class="leave-dialog-btn" style="background-color: #da373c; font-size: 12px; padding: 4px 8px;">مغادرة</button>
+        <div class="tool-category">
+          <h4 id="category-transfer">File Transfer & Backup</h4>
+          <a class="button" href="intent://com.sec.android.easyMover/#Intent;scheme=android-app;end" target="_blank" id="btn-smart-switch"><img src="smartswitch.png" alt="Smart Switch"> Open Smart Switch</a>
+          <a class="button" href="intent://com.coloros.backuprestore/#Intent;scheme=android-app;end" target="_blank" id="btn-oppo-clone-phone"><img src="clonephone_oppo.png" alt="Clone Phone"> Open Clone Phone (Oppo)</a>
+          <a class="button" href="intent://com.hicloud.android.clone/#Intent;scheme=android-app;end" target="_blank" id="btn-huawei-clone-phone"><img src="huawei.png" alt="Phone Clone"> Open Phone Clone (Huawei)</a>
+          <a class="button" href="intent://com.vivo.easyshare/#Intent;scheme=android-app;end" target="_blank" id="btn-easyshare"><img src="easyshare.png" alt="EasyShare"> Open EasyShare (Vivo)</a>
+          <a class="button" href="intent://com.infinix.xshare/#Intent;scheme=android-app;end" target="_blank" id="btn-xshare"><img src="infinix.png" alt="XShare"> Open XShare (Infinix)</a>
+          <a class="button" href="intent://com.xiaomi.midrop/#Intent;scheme=android-app;end" target="_blank" id="btn-shareme"><img src="shareme.png" alt="ShareMe"> Open ShareMe (Xiaomi)</a>
+          <a class="button" href="intent://com.miui.huanji/#Intent;scheme=android-app;end" target="_blank" id="btn-mi-mover"><img src="mimover.png" alt="Mi Mover"> Open Mi Mover (Xiaomi)</a>
         </div>
-    </template>
 
-    <template id="telegram-file-template">
-        <div class="list-group-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 4px; margin-bottom: 5px;">
-            <div style="display: flex; align-items: center; overflow: hidden;">
-                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABFSURBVHja7cEBDQAAAMKg9V9tCU+gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcAcFIAABaVp7wQAAAABJRU5ErkJggg==" style="margin-right: 10px; max-width: 64px; max-height: 64px; object-fit: cover; border-radius: 4px;">
-                <div class="file-details">
-                    <p class="file-name" style="margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></p>
-                    <small class="file-size" style="color: #96989d;"></small>
-                </div>
-            </div>
-            <button class="download-tg-file-btn">⬇️ تحميل</button>
+        <div class="tool-category">
+          <h4 id="category-google">Google Apps</h4>
+          <a class="button" href="intent://com.google.android.youtube/#Intent;scheme=android-app;end" target="_blank" id="btn-youtube"><img src="youtube.png" alt="YouTube"> Open YouTube</a>
+          <a class="button" href="intent://com.android.chrome/#Intent;scheme=android-app;end" target="_blank" id="btn-chrome"><img src="chrome.png" alt="Chrome"> Open Chrome Browser</a>
+          <a class="button" href="intent://com.google.android.gm/#Intent;scheme=android-app;end" target="_blank" id="btn-gmail"><img src="gmail.png" alt="Gmail"> Open Gmail</a>
+          <a class="button" href="intent://com.google.android.apps.maps/#Intent;scheme=android-app;end" target="_blank" id="btn-maps"><img src="maps.png" alt="Maps"> Open Maps</a>
+          <a class="button" href="intent://com.google.android.googlequicksearchbox/#Intent;scheme=android-app;end" target="_blank" id="btn-google-search"><img src="google.png" alt="Google Search"> Open Google Search</a>
+          <a class="button" href="intent:#Intent;action=com.google.android.gsf.login.LOGIN_ACTIVITY;package=com.google.android.gsf.login;end" target="_blank" id="btn-google-login"><img src="google.png" alt="Google Login"> Google Login</a>
+          <a class="button" href="intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:com.google.android.gms;end" target="_blank" id="btn-play-services"><img src="playstore.png" alt="Play Services"> Google Play Services</a>
         </div>
-    </template>
 
-    <template id="library-item-template">
-        <div class="list-group-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 4px; margin-bottom: 5px;">
-            <div class="file-details">
-                <p class="file-name" style="margin: 0;"></p>
-                <small class="file-size" style="color: #96989d;"></small>
-            </div>
+        <div class="tool-category">
+          <h4 id="category-system">System & Settings</h4>
+          <a class="button" href="intent://com.android.settings/#Intent;scheme=android-app;end" target="_blank" id="btn-settings"><img src="settings.png" alt="Settings"> Open Settings</a>
+          <a class="button" href="intent://com.sec.android.app.myfiles/#Intent;scheme=android-app;end" target="_blank" id="btn-my-files"><img src="myfiles.png" alt="My Files"> Open My Files (Samsung)</a>
+          <a class="button" href="intent:#Intent;action=android.settings.ACCESSIBILITY_SETTINGS;end" target="_blank" id="btn-accessibility"><img src="accessibility.png" alt="Accessibility"> Accessibility Settings</a>
+          <a class="button" href="intent:#Intent;action=android.app.action.SET_NEW_PASSWORD;end" target="_blank" id="btn-set-lock"><img src="setlock.png" alt="Set Lock"> Set Screen Lock</a>
+          <a class="button" href="intent://com.sec.android.app.popupcalculator/#Intent;scheme=android-app;end" target="_blank" id="btn-calculator"><img src="calculator.png" alt="Calculator"> Open Calculator</a>
+          <a class="button" href="intent://com.secuso.privacyFriendlyCodeScanner.QrScanActivity/#Intent;scheme=android-app;end" target="_blank" id="btn-open-qr-scanner"><img src="qrcode.png" alt="QR Scanner"> Open QR scanner</a>
         </div>
-    </template>
 
-    <template id="log-item-template">
-        <div class="list-group-item" style="padding: 8px; border-radius: 4px; margin-bottom: 5px;">
-            <p class="log-filename" style="margin: 0; font-weight: bold;"></p>
-            <p class="log-status" style="margin: 0 0 5px 0;"></p>
-            <small class="log-timestamp" style="color: #96989d;"></small>
+        <div class="tool-category">
+          <h4 id="category-frp">FRP & Unlocking Tools</h4>
+          <a class="button" href="intent://de.szalkowski.activitylauncher/#Intent;scheme=android-app;end" target="_blank" id="btn-activity-launcher"><img src="rocket.png" alt="Activity Launcher"> Open Activity Launcher</a>
+          <a class="button" href="intent://com.google.android.gms/#Intent;scheme=promote_smartlock_scheme;end" target="_blank" id="btn-pincode"><img src="key.png" alt="Pin Code"> Open Pin Code (Smart Lock)</a>
+          <a class="button" href="intent://com.rrivenllc.shieldx/#Intent;scheme=android-app;end" target="_blank" id="btn-alliance-shield"><img src="allianceshield.png" alt="Alliance Shield"> Open Alliance Shield</a> 
+          <a class="button" href="samsungapps://ProductDetail/com.rrivenllc.shieldx" target="_blank" id="btn-alliance-shield-store"><img src="allianceshield.png" alt="Galaxy Store"> Alliance Shield (Galaxy Store)</a>
+          <a class="button" href="intent://com.activitymanager/#Intent;scheme=android-app;end" target="_blank" id="btn-activity-manager"><img src="tasks.png" alt="Activity Manager"> Open Activity Manager</a>
+          <a class="button" href="samsungapps://ProductDetail/com.activitymanager" target="_blank" id="btn-activity-manager-store"><img src="tasks.png" alt="Galaxy Store"> Activity Manager (Galaxy Store)</a>
+          <a class="button" href="intent://org.aospstudio.files/#Intent;scheme=android-app;end" target="_blank" id="btn-files-shortcut"><img src="folder.png" alt="Files Shortcut"> Open Files Shortcut</a>
+          <a class="button" href="samsungapps://ProductDetail/org.aospstudio.files" target="_blank" id="btn-files-shortcut-store"><img src="folder.png" alt="Galaxy Store"> Files Shortcut (Galaxy Store)</a>
+          <a class="button" href="intent://com.school.optimize/#Intent;scheme=android-app;end" target="_blank" id="btn-package-disabler"><img src="ban.png" alt="Package Disabler"> Open Package Disabler</a>
+          <a class="button" href="intent://com.cloudmdm.tools.cloud/#Intent;scheme=android-app;end" target="_blank" id="btn-knox-mdm"><img src="cloud.png" alt="Knox MDM"> Open Knox Cloud MDM</a>
+          <a class="button" href="intent://com.knox.verification.gettingstarted/#Intent;scheme=android-app;end" target="_blank" id="btn-knox-verify"><img src="check.png" alt="Knox Verification"> Knox Verification</a>
+          <a class="button" href="samsungapps://ProductDetail/com.infinix.xshare" target="_blank" id="btn-xshare-store"><img src="infinix.png" alt="Galaxy Store"> XShare (Galaxy Store)</a>
         </div>
-    </template>
 
-
-    <!-- Bootstrap JS -->
-    <!-- تم إزالة Bootstrap JS لأنه لم يعد ضرورياً -->
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- تعديل جذري: تحديد عنوان الخادم الخلفي على Railway ---
-            // بما أن الواجهة الأمامية على GitHub Pages والخلفية على Railway،
-            // يجب تحديد عنوان الخادم الخلفي بشكل صريح.
-            // تم التحديث لاستخدام الرابط العام الجديد بعد تغيير اسم الخدمة.
-            const API_BASE_URL = 'https://downloader-production-004b.up.railway.app';
-
-            const appState = {
-                clientId: `web-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                ws: null,
-                currentDownloadDetails: null,
-                telegramLogin: {
-                    phone: null,
-                    phone_code_hash: null,
-                }
-            };
-
-            // --- منطق التبويبات ---
-            window.openTab = (evt, tabName) => {
-                let i, tabcontent, tablinks;
-                tabcontent = document.getElementsByClassName("tab-content");
-                for (i = 0; i < tabcontent.length; i++) {
-                    tabcontent[i].style.display = "none";
-                }
-                tablinks = document.getElementsByClassName("tab-button");
-                for (i = 0; i < tablinks.length; i++) {
-                    tablinks[i].classList.remove("active");
-                }
-                document.getElementById(tabName).style.display = "block";
-                evt.currentTarget.classList.add("active");
-            };
-
-            // --- UI Elements ---
-            const urlInput = document.getElementById('url-input');
-            const fetchButton = document.getElementById('fetch-button');
-            const detailsContainer = document.getElementById('details-container');
-            const filenameSpan = document.getElementById('filename-span');
-            const filesizeSpan = document.getElementById('filesize-span');
-            const formatsContainer = document.getElementById('formats-container');
-            const formatsSelect = document.getElementById('formats-select');
-            const startDownloadButton = document.getElementById('start-download-button');
-            const statusMessage = document.getElementById('status-message');
-            const downloadList = document.getElementById('download-list');
-
-            // --- Telegram UI Elements ---
-            const refreshDialogsBtn = document.getElementById('refresh-dialogs-btn');
-            const telegramStatus = document.getElementById('telegram-status');
-            const dialogsList = document.getElementById('telegram-dialogs-list');
-            const filesList = document.getElementById('telegram-files-list');
-
-            // --- Tools UI Elements ---
-            const imageConverterInput = document.getElementById('image-converter-input');
-            const imageConverterFormat = document.getElementById('image-converter-format');
-            const imageConverterBtn = document.getElementById('image-converter-btn');
-            const imageConverterStatus = document.getElementById('image-converter-status');
-            const videoMergerVideoInput = document.getElementById('video-merger-video-input');
-            const videoMergerAudioInput = document.getElementById('video-merger-audio-input');
-            const videoMergerBtn = document.getElementById('video-merger-btn');
-            const videoMergerStatus = document.getElementById('video-merger-status');
-            const fileRepairInput = document.getElementById('file-repair-input');
-            const fileRepairDeepCheckbox = document.getElementById('file-repair-deep-checkbox');
-            const fileRepairBtn = document.getElementById('file-repair-btn');
-            const fileRepairStatus = document.getElementById('file-repair-status');
-
-            // --- Library, Log, Settings UI Elements ---
-            const refreshLibraryBtn = document.getElementById('refresh-library-btn');
-            const libraryList = document.getElementById('library-list');
-            const refreshLogBtn = document.getElementById('refresh-log-btn');
-            const clearLogBtn = document.getElementById('clear-log-btn');
-            const logList = document.getElementById('log-list');
-            const settingsStatus = document.getElementById('settings-status');
-            const settingsDownloadFolder = document.getElementById('settings-download-folder');
-            const settingsMaxDownloads = document.getElementById('settings-max-downloads');
-            const saveSettingsBtn = document.getElementById('save-settings-btn');
-            const telegramLoginStatus = document.getElementById('telegram-login-status');
-            const telegramLoginSection = document.getElementById('telegram-login-section');
-            const tgLoginStepPhone = document.getElementById('tg-login-step-phone');
-            const tgPhoneInput = document.getElementById('tg-phone-input');
-            const tgSendCodeBtn = document.getElementById('tg-send-code-btn');
-            const tgLoginStepCode = document.getElementById('tg-login-step-code');
-            const tgLoginStepPassword = document.getElementById('tg-login-step-password');
-
-
-            // --- Templates ---
-            const downloadItemTemplate = document.getElementById('download-item-template');
-            const dialogTemplate = document.getElementById('telegram-dialog-template');
-            const fileTemplate = document.getElementById('telegram-file-template');
-
-            const libraryItemTemplate = document.getElementById('library-item-template');
-            const logItemTemplate = document.getElementById('log-item-template');
-            // --- Utility Functions ---
-            const formatSize = (bytes) => {
-                if (bytes === 0 || !bytes) return '0 B';
-                const k = 1024;
-                const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-                const i = Math.floor(Math.log(bytes) / Math.log(k));
-                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-            };
-
-            const showStatus = (message, isError = false) => {
-                statusMessage.textContent = message;
-                statusMessage.style.padding = '1rem';
-                statusMessage.style.borderRadius = '5px';
-                statusMessage.style.backgroundColor = isError ? '#da373c' : '#3498db';
-                statusMessage.style.color = 'white';
-                statusMessage.style.display = 'block';
-            };
-            
-            const downloadBlob = (blob, filename) => {
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-            };
-
-            // --- الحل الجذري والنهائي: دالة مركزية لتعديل الروابط ---
-            // هذه الدالة تحاكي تماماً المنطق الموجود في الخادم والبرنامج المكتبي.
-            const prepareUrl = (url) => {
-                if (url.includes("threads.net") || url.includes("threads.com")) {
-                    if (!url.endsWith('/embed')) {
-                        return url.split('?')[0].split('&')[0] + '/embed';
-                    }
-                }
-                return url;
-            };
-            // --- WebSocket Logic ---
-            const connectWebSocket = () => {
-                // --- تعديل جذري: استخدام عنوان خادم Railway للاتصال بـ WebSocket ---
-                // استبدال 'https' بـ 'wss' للاتصال الآمن
-                if (!API_BASE_URL || API_BASE_URL.includes('your-railway-app-name')) { // Check if the placeholder is still there
-                    console.error("!! خطأ: لم يتم تعيين رابط الخادم الخلفي (API_BASE_URL) في ملف index.html.");
-                    return;
-                }
-                const wsUrl = API_BASE_URL.replace(/^http/, 'ws');
-                appState.ws = new WebSocket(`${wsUrl}/ws/${appState.clientId}`);
-                
-                appState.ws.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    const taskId = data.task_id;
-                    const item = document.getElementById(`task-${taskId}`);
-                    if (!item) return;
-
-                    const statusText = item.querySelector('.status-text');
-                    const progressBar = item.querySelector('.progress-bar');
-                    const pauseBtn = item.querySelector('.pause-btn');
-                    const resumeBtn = item.querySelector('.resume-btn');
-
-                    switch (data.type) {
-                        case 'progress':
-                            statusText.textContent = data.text;
-                            progressBar.style.width = `${Math.max(0, data.percent)}%`;
-                            break;
-                        case 'done':
-                            statusText.textContent = data.text;
-                            progressBar.style.width = '100%';
-                            progressBar.style.backgroundColor = '#248046'; // أخضر
-                            pauseBtn.style.display = 'none';
-                            resumeBtn.style.display = 'none';
-                            item.querySelector('.cancel-btn').style.display = 'none';
-                            break;
-                        case 'error':
-                            statusText.textContent = data.text;
-                            progressBar.style.width = '100%';
-                            progressBar.style.backgroundColor = '#da373c'; // أحمر
-                            pauseBtn.style.display = 'none';
-                            resumeBtn.style.display = 'none';
-                            break;
-                        case 'paused':
-                            statusText.textContent = data.text;
-                            progressBar.style.backgroundColor = '#f1c40f'; // أصفر
-                            pauseBtn.style.display = 'none';
-                            resumeBtn.style.display = 'block';
-                            break;
-                        case 'resumed':
-                            statusText.textContent = 'جاري الاستئناف...';
-                            progressBar.style.backgroundColor = '#248046'; // أخضر
-                            pauseBtn.style.display = 'block';
-                            resumeBtn.style.display = 'none';
-                            break;
-                    }
-                };
-
-                appState.ws.onclose = () => {
-                    console.log('WebSocket disconnected. Attempting to reconnect...');
-                    setTimeout(connectWebSocket, 3000); // Reconnect after 3 seconds
-                };
-
-                appState.ws.onerror = (err) => {
-                    console.error('WebSocket error:', err);
-                    appState.ws.close();
-                };
-            };
-
-            // --- Downloader Logic ---
-            const fetchDetails = async () => {
-                const originalUrl = urlInput.value.trim();
-                if (!originalUrl) return;
-
-                showStatus('جاري فحص الرابط...', false);
-                fetchButton.disabled = true;
-                detailsContainer.style.display = 'none';
-
-                try {
-                    // --- الحل: استدعاء الدالة المركزية لتجهيز الرابط قبل إرساله ---
-                    const preparedUrl = prepareUrl(originalUrl);
-
-                    const response = await fetch(`${API_BASE_URL}/api/v1/details`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: preparedUrl }), // إرسال الرابط المعدل
-                    });
-
-                    if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.detail || 'فشل فحص الرابط');
-                    }
-
-                    const data = await response.json();
-                    appState.currentDownloadDetails = { url: preparedUrl, ...data }; // تخزين الرابط المعدل للاستخدامات الأخرى
-
-                    filenameSpan.textContent = data.filename;
-                    filesizeSpan.textContent = data.total_size ? formatSize(data.total_size) : 'غير معروف';
-                    
-                    if (data.source === 'yt-dlp' && data.details?.formats) {
-                        formatsSelect.innerHTML = '<option value="">-- أفضل جودة متاحة --</option>';
-                        data.details.formats.forEach(f => {
-                            if (f.vcodec !== 'none' && f.resolution) { // Only show video formats
-                                const option = document.createElement('option');
-                                option.value = f.format_id;
-                                option.textContent = `${f.resolution} (${f.ext}) - ${formatSize(f.filesize || f.filesize_approx) || 'غير معروف'}`;
-                                formatsSelect.appendChild(option);
-                            }
-                        });
-                        formatsContainer.style.display = 'block';
-                    } else {
-                        formatsContainer.style.display = 'none';
-                    }
-
-                    detailsContainer.style.display = 'block';
-                    statusMessage.style.display = 'none';
-                } catch (error) {
-                    showStatus(`خطأ: ${error.message}`, true);
-                } finally {
-                    fetchButton.disabled = false;
-                }
-            };
-
-            const startDownload = async () => {
-                if (!appState.currentDownloadDetails) return;
-
-                let { url, source, filename, details } = appState.currentDownloadDetails;
-                const formatId = formatsSelect.value || (details?.format_id);
-                const audioOnly = false; // يمكن إضافة خيار في الواجهة الأمامية للتحكم بهذا
-
-                // URL stored in appState.currentDownloadDetails.url is already prepared
-                const preparedUrl = url; 
-
-                // --- تعديل جذري: التعامل مع نقطة النهاية الجديدة التي تبث الملف مباشرة ---
-                // هذا المنطق يعمل مع كل من 'direct' و 'yt-dlp'
-                showStatus('جاري تجهيز التحميل... سيظهر مربع حوار الحفظ قريباً.', false);
-                startDownloadButton.disabled = true;
-
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/download`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            url: preparedUrl,
-                            filename: filename, // إرسال اسم الملف المقترح
-                            source: source,
-                            format_id: formatId,
-                            audio_only: audioOnly
-                        }),
-                    });
-                    
-                    if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.detail || 'فشل تجهيز التحميل من الخادم');
-                    }
-
-                    // الخادم يرسل الآن الملف مباشرة.
-                    // نحصل عليه كـ "blob" ونقوم بتشغيل التحميل في المتصفح.
-                    const blob = await response.blob();
-                    
-                    // استخدام دالة downloadBlob المساعدة لتشغيل التحميل
-                    downloadBlob(blob, filename);
-
-                    showStatus('✅ تم بدء التحميل بنجاح في متصفحك!', false);
-                    urlInput.value = ''; // Clear input
-                    detailsContainer.style.display = 'none'; // Hide details
-
-                } catch (error) {
-                    showStatus(`خطأ: ${error.message}`, true);
-                } finally {
-                    startDownloadButton.disabled = false;
-                }
-            };
-
-            const createDownloadItem = (taskId, filename) => {
-                // لا ننشئ عنصر تحميل إلا للمهام التي تعمل في الخلفية (مثل تيليجرام)
-                const clone = downloadItemTemplate.content.cloneNode(true);
-                const downloadItem = clone.querySelector('.download-item');
-                downloadItem.id = `task-${taskId}`;
-                downloadItem.querySelector('.card-title').textContent = filename;
-                downloadItem.querySelector('.status-text').textContent = 'جاري البدء...';
-                
-                downloadItem.querySelector('.pause-btn').addEventListener('click', () => pauseDownload(taskId));
-                downloadItem.querySelector('.resume-btn').addEventListener('click', () => resumeDownload(taskId));
-                downloadItem.querySelector('.cancel-btn').addEventListener('click', () => cancelDownload(taskId));
-
-                downloadList.prepend(downloadItem);
-            };
-
-            const updateDownloadItemError = (taskId, message) => {
-                const item = document.getElementById(`task-${taskId}`);
-                if (item) {
-                    item.querySelector('.status-text').textContent = message;
-                    const progressBar = item.querySelector('.progress-bar');
-                    progressBar.style.width = '100%';
-                    progressBar.style.backgroundColor = '#da373c'; // أحمر
-                }
-            };
-
-            const pauseDownload = async (taskId) => {
-                await fetch(`${API_BASE_URL}/api/v1/pause/${taskId}`, { method: 'POST' });
-            };
-
-            const resumeDownload = async (taskId) => {
-                await fetch(`${API_BASE_URL}/api/v1/resume/${taskId}`, { method: 'POST' });
-            };
-
-            const cancelDownload = async (taskId) => {
-                await fetch(`${API_BASE_URL}/api/v1/cancel/${taskId}`, { method: 'POST' });
-                const item = document.getElementById(`task-${taskId}`);
-                item?.remove();
-            };
-
-            // --- Telegram Manager Logic ---
-            const fetchTelegramDialogs = async () => {
-                telegramStatus.textContent = 'جاري جلب القنوات...';
-                dialogsList.innerHTML = '';
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/telegram/dialogs`);
-                    if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.detail || 'فشل جلب القنوات');
-                    }
-                    const data = await response.json();
-                    data.dialogs.forEach(dialog => {
-                        const clone = dialogTemplate.content.cloneNode(true);
-                        const item = clone.querySelector('.list-group-item');
-                        item.dataset.dialogId = dialog.id;
-                        item.querySelector('.dialog-name').textContent = dialog.name;
-                        if (dialog.profile_photo_bytes) {
-                            item.querySelector('img').src = `data:image/jpeg;base64,${dialog.profile_photo_bytes}`;
-                        }
-                        
-                        item.addEventListener('click', (e) => {
-                            if (e.target.classList.contains('leave-dialog-btn')) return;
-                            handleDialogClick(item);
-                        });
-
-                        clone.querySelector('.leave-dialog-btn').addEventListener('click', () => {
-                            leaveTelegramChannel(dialog.id, dialog.name);
-                        });
-
-                        dialogsList.appendChild(clone);
-                    });
-                    telegramStatus.textContent = `تم العثور على ${data.dialogs.length} قناة/مجموعة.`;
-                } catch (error) {
-                    telegramStatus.textContent = `خطأ: ${error.message}`;
-                }
-            };
-
-            const fetchTelegramFiles = async (dialogId) => {
-                // Manage active state
-                document.querySelectorAll('#telegram-dialogs-list .list-group-item').forEach(el => {
-                    el.style.backgroundColor = '';
-                });
-                const activeItem = document.querySelector(`#telegram-dialogs-list .list-group-item[data-dialog-id='${dialogId}']`);
-                if (activeItem) {
-                    activeItem.style.backgroundColor = '#5865f2';
-                }
-
-                filesList.innerHTML = '<p style="text-align: center;">جاري جلب الملفات...</p>';
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/telegram/dialog/${dialogId}/files`);
-                    if (!response.ok) throw new Error('فشل الاتصال بالخادم.');
-
-                    filesList.innerHTML = '';
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
-
-                    // Read the stream line by line (ndjson)
-                    let buffer = '';
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop(); // Keep the last partial line
-
-                        for (const line of lines) {
-                            if (line.trim() === '') continue;
-                            const fileData = JSON.parse(line);
-                            if (fileData.error) {
-                                filesList.innerHTML = `<p style="text-align: center; color: #e74c3c;">خطأ: ${fileData.error}</p>`;
-                                return;
-                            }
-                            
-                            const clone = fileTemplate.content.cloneNode(true);
-                            clone.querySelector('.file-name').textContent = fileData.filename || 'ملف بدون اسم';
-                            clone.querySelector('.file-size').textContent = formatSize(fileData.size);
-                            if (fileData.thumbnail) {
-                                clone.querySelector('img').src = `data:image/jpeg;base64,${fileData.thumbnail}`;
-                            }
-                            // Store data and add event listener
-                            const downloadBtn = clone.querySelector('.download-tg-file-btn');
-                            downloadBtn.dataset.fileInfo = JSON.stringify(fileData);
-                            downloadBtn.addEventListener('click', startTelegramDownload);
-
-                            filesList.prepend(clone); // Prepend to show newest first
-                        }
-                    }
-                } catch (error) {
-                    filesList.innerHTML = `<p style="text-align: center; color: #e74c3c;">خطأ في جلب الملفات: ${error.message}</p>`;
-                }
-            };
-
-            const startTelegramDownload = async (event) => {
-                const fileInfo = JSON.parse(event.target.dataset.fileInfo);
-                if (!fileInfo) return;
-
-                // 1. إنشاء عنصر التحميل في الواجهة فوراً
-                const taskId = `${appState.clientId}-${Date.now()}`;
-                createDownloadItem(taskId, fileInfo.filename);
-
-                // 2. إرسال الطلب إلى الواجهة الخلفية لبدء التحميل
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/telegram/download`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            client_id: taskId,
-                            file_info: fileInfo,
-                        }),
-                    });
-
-                    if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.detail || 'فشل بدء تحميل ملف تيليجرام');
-                    }
-
-                    // 3. الانتقال إلى تبويب التحميلات ليرى المستخدم التقدم
-                    document.querySelector('.tab-button[onclick*="downloader-panel"]').click();
-
-                } catch (error) {
-                    updateDownloadItemError(taskId, `خطأ: ${error.message}`);
-                }
-            };
-
-            const handleFileRepair = async () => {
-                const file = fileRepairInput.files[0];
-                if (!file) {
-                    fileRepairStatus.textContent = 'الرجاء اختيار ملف أولاً.';
-                    return;
-                }
-                fileRepairStatus.textContent = 'جاري الإصلاح (قد يستغرق وقتاً طويلاً)...';
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('deep_repair', fileRepairDeepCheckbox.checked);
-
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/tools/file-repair`, {
-                        method: 'POST',
-                        body: formData,
-                    });
-                    if (!response.ok) {
-                        const err = await response.json();
-                        throw new Error(err.detail || 'فشل الإصلاح');
-                    }
-                    const blob = await response.blob();
-                    const baseName = file.name.substring(0, file.name.lastIndexOf('.'));
-                    const ext = file.name.substring(file.name.lastIndexOf('.'));
-                    const outputFilename = `${baseName}_repaired${ext}`;
-                    downloadBlob(blob, outputFilename);
-                    fileRepairStatus.textContent = '✅ تم الإصلاح بنجاح!';
-                } catch (error) {
-                    fileRepairStatus.textContent = `❌ خطأ: ${error.message}`;
-                }
-            };
-
-            const leaveTelegramChannel = async (dialogId, dialogName) => {
-                if (!confirm(`هل أنت متأكد أنك تريد مغادرة "${dialogName}"؟`)) return;
-                telegramStatus.textContent = `جاري مغادرة ${dialogName}...`;
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/telegram/leave/${dialogId}`, { method: 'POST' });
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.detail);
-                    telegramStatus.textContent = result.message;
-                    // Refresh dialogs list
-                    fetchTelegramDialogs();
-                } catch (error) {
-                    telegramStatus.textContent = `❌ خطأ: ${error.message}`;
-                }
-            };
-
-            const handleDialogClick = (item) => {
-                const dialogId = item.dataset.dialogId;
-                fetchTelegramFiles(dialogId);
-            };
-
-            // --- Library, Log, Settings Logic ---
-            const fetchLibrary = async () => {
-                libraryList.innerHTML = '<p style="text-align: center;">جاري جلب الملفات...</p>';
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/library`);
-                    if (!response.ok) throw new Error((await response.json()).detail);
-                    const data = await response.json();
-                    libraryList.innerHTML = '';
-                    if (data.files.length === 0) {
-                        libraryList.innerHTML = '<p style="text-align: center;">المكتبة فارغة.</p>';
-                        return;
-                    }
-                    data.files.forEach(file => {
-                        const clone = libraryItemTemplate.content.cloneNode(true);
-                        clone.querySelector('.file-name').textContent = `${file.filename} (${file.folder})`;
-                        clone.querySelector('.file-size').textContent = formatSize(file.size);
-                        libraryList.appendChild(clone);
-                    });
-                } catch (error) {
-                    libraryList.innerHTML = `<p style="text-align: center; color: #da373c;">❌ خطأ: ${error.message}</p>`;
-                }
-            };
-
-            const fetchLog = async () => {
-                logList.innerHTML = '<p style="text-align: center;">جاري جلب السجل...</p>';
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/log`);
-                    if (!response.ok) throw new Error((await response.json()).detail);
-                    const data = await response.json();
-                    logList.innerHTML = '';
-                    if (data.log.length === 0) {
-                        logList.innerHTML = '<p style="text-align: center;">السجل فارغ.</p>';
-                        return;
-                    }
-                    data.log.forEach(entry => {
-                        const clone = logItemTemplate.content.cloneNode(true);
-                        clone.querySelector('.log-filename').textContent = entry.filename || 'ملف غير معروف';
-                        const statusP = clone.querySelector('.log-status');
-                        statusP.textContent = entry.status_text;
-                        statusP.style.color = entry.status === 'error' ? '#da373c' : '#248046';
-                        clone.querySelector('.log-timestamp').textContent = new Date(entry.timestamp * 1000).toLocaleString();
-                        logList.prepend(clone);
-                    });
-                } catch (error) {
-                    logList.innerHTML = `<p style="text-align: center; color: #da373c;">❌ خطأ: ${error.message}</p>`;
-                }
-            };
-
-            const clearLog = async () => {
-                if (!confirm('هل أنت متأكد من رغبتك في مسح سجل التحميلات بالكامل؟')) return;
-                try {
-                    await fetch(`${API_BASE_URL}/api/v1/log`, { method: 'DELETE' });
-                    fetchLog();
-                } catch (error) {
-                    logList.innerHTML = `<p style="text-align: center; color: #da373c;">❌ خطأ: ${error.message}</p>`;
-                }
-            };
-
-            const fetchAndShowSettings = async () => {
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/settings`);
-                    if (!response.ok) throw new Error((await response.json()).detail);
-                    const settings = await response.json();
-                    settingsDownloadFolder.value = settings.download_folder || '';
-                    settingsMaxDownloads.value = settings.max_concurrent_downloads || 3;
-
-                    // تحديث واجهة تيليجرام
-                    const tgSettings = settings.telegram || {};
-                    const isLoggedIn = tgSettings.session_string && tgSettings.session_string.length > 50;
-                    document.getElementById('telegram-login-section').style.display = isLoggedIn ? 'none' : 'block';
-                    document.getElementById('telegram-logout-section').style.display = isLoggedIn ? 'block' : 'none';
-
-                    if (isLoggedIn) {
-                        telegramLoginStatus.textContent = `تم تسجيل الدخول باستخدام الرقم: ${tgSettings.phone || 'غير معروف'}`;
-                        telegramLoginStatus.style.color = 'lightgreen';
-                    } else {
-                        telegramLoginStatus.textContent = 'لم يتم تسجيل الدخول إلى تيليجرام.';
-                        telegramLoginStatus.style.color = 'orange';
-                    }
-
-                } catch (error) {
-                    settingsStatus.textContent = `❌ خطأ في جلب الإعدادات: ${error.message}`;
-                }
-            };
-
-            const handleTelegramLogin = async () => {
-                const currentState = document.getElementById('tg-submit-btn').dataset.state;
-                const phone = appState.telegramLogin.phone;
-                const code = document.getElementById('tg-code-input').value;
-                const password = document.getElementById('tg-password-input').value;
-                telegramLoginStatus.textContent = 'جاري التحقق...';
-
-                try {
-                    let response;
-                    if (currentState === 'code') {
-                        response = await fetch(`${API_BASE_URL}/api/v1/telegram/login/submit-code`, {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ phone: phone, phone_code_hash: appState.telegramLogin.phone_code_hash, code: code })
-                        });
-                    } else if (currentState === 'password') {
-                        response = await fetch(`${API_BASE_URL}/api/v1/telegram/login/submit-password`, {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ password: password })
-                        });
-                    }
-
-                    const result = await response.json();
-                    if (!response.ok) {
-                        if (response.status === 401 && result.detail === 'password_required') {
-                            telegramLoginStatus.textContent = 'مطلوب كلمة مرور التحقق بخطوتين.';
-                            document.getElementById('tg-login-step-code').style.display = 'none';
-                            document.getElementById('tg-login-step-password').style.display = 'block';
-                            document.getElementById('tg-submit-btn').dataset.state = 'password';
-                        } else {
-                            throw new Error(result.detail || 'فشل التحقق');
-                        }
-                    } else {
-                        telegramLoginStatus.textContent = '✅ تم تسجيل الدخول بنجاح!';
-                        telegramLoginStatus.style.color = 'lightgreen';
-                        fetchAndShowSettings(); // Refresh UI
-                    }
-                } catch (error) {
-                    telegramLoginStatus.textContent = `❌ خطأ: ${error.message}`;
-                    telegramLoginStatus.style.color = '#da373c';
-                }
-            };
-
-            const handleTelegramLogout = async () => {
-                // This is a client-side logout for now, as there's no server-side endpoint for it.
-                // We just clear the session string from settings.
-                if (!confirm('هل أنت متأكد أنك تريد تسجيل الخروج؟')) return;
-                settingsStatus.textContent = 'جاري تسجيل الخروج...';
-                const body = { session_string: null }; // Send null to clear it
-                const response = await fetch(`${API_BASE_URL}/api/v1/settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
-                if (response.ok) {
-                    settingsStatus.textContent = 'تم تسجيل الخروج.';
-                    fetchAndShowSettings(); // Refresh UI
-                } else {
-                    settingsStatus.textContent = '❌ فشل تسجيل الخروج.';
-                }
-            };
-
-            // --- Tools Logic ---
-            const handleImageConversion = async () => {
-                const file = imageConverterInput.files[0];
-                if (!file) {
-                    imageConverterStatus.textContent = 'الرجاء اختيار صورة أولاً.';
-                    return;
-                }
-                imageConverterStatus.textContent = 'جاري التحويل...';
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('output_format', imageConverterFormat.value);
-
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/tools/image-converter`, {
-                        method: 'POST',
-                        body: formData,
-                    });
-                    if (!response.ok) {
-                        const err = await response.json();
-                        throw new Error(err.detail || 'فشل التحويل');
-                    }
-                    const blob = await response.blob();
-                    const outputFilename = `${file.name.split('.').slice(0, -1).join('.')}.${imageConverterFormat.value.toLowerCase()}`;
-                    downloadBlob(blob, outputFilename);
-                    imageConverterStatus.textContent = '✅ تم التحويل بنجاح!';
-                } catch (error) {
-                    imageConverterStatus.textContent = `❌ خطأ: ${error.message}`;
-                }
-            };
-
-            const handleVideoMerge = async () => {
-                const videoFile = videoMergerVideoInput.files[0];
-                const audioFile = videoMergerAudioInput.files[0];
-                if (!videoFile || !audioFile) {
-                    videoMergerStatus.textContent = 'الرجاء اختيار ملف الفيديو وملف الصوت.';
-                    return;
-                }
-                videoMergerStatus.textContent = 'جاري الدمج (قد يستغرق بعض الوقت)...';
-                const formData = new FormData();
-                formData.append('video_file', videoFile);
-                formData.append('audio_file', audioFile);
-
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/tools/video-merger`, {
-                        method: 'POST',
-                        body: formData,
-                    });
-                    if (!response.ok) {
-                        const err = await response.json();
-                        throw new Error(err.detail || 'فشل الدمج');
-                    }
-                    const blob = await response.blob();
-                    const outputFilename = `${videoFile.name.split('.').slice(0, -1).join('.')}_merged.mp4`;
-                    downloadBlob(blob, outputFilename);
-                    videoMergerStatus.textContent = '✅ تم الدمج بنجاح!';
-                } catch (error) {
-                    videoMergerStatus.textContent = `❌ خطأ: ${error.message}`;
-                }
-            };
-
-            const checkAndSetupFfmpeg = async () => {
-                const ffmpegSection = document.getElementById('ffmpeg-tool-section');
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/tools/check-ffmpeg`);
-                    const data = await response.json();
-                    if (data.installed) {
-                        ffmpegSection.innerHTML = '<p style="color: lightgreen;">✅ برنامج ffmpeg مثبت وجاهز للاستخدام.</p>';
-                    } else {
-                        ffmpegSection.innerHTML = `
-                            <p style="color: orange;">⚠️ برنامج ffmpeg غير مثبت. هذا البرنامج ضروري لدمج الفيديو وإصلاح الملفات.</p>
-                            <button id="install-ffmpeg-btn">📥 تثبيت ffmpeg تلقائياً</button>
-                            <div id="install-ffmpeg-status" style="margin-top: 0.5rem;"></div>
-                        `;
-                        document.getElementById('install-ffmpeg-btn').addEventListener('click', async () => {
-                            const statusDiv = document.getElementById('install-ffmpeg-status');
-                            statusDiv.textContent = 'بدأت عملية التثبيت في الخلفية، يرجى الانتظار...';
-                            await fetch(`${API_BASE_URL}/api/v1/tools/install-ffmpeg`, { method: 'POST' });
-                            statusDiv.textContent = 'تم إرسال طلب التثبيت. تحقق من وحدة التحكم في الخادم للمزيد من التفاصيل.';
-                        });
-                    }
-                } catch (error) {
-                    ffmpegSection.innerHTML = '<p style="color: red;">فشل التحقق من ffmpeg.</p>';
-                }
-            };
-
-            const handleYtdlpUpdate = async () => {
-                const statusDiv = document.getElementById('update-ytdlp-status');
-                statusDiv.textContent = 'جاري إرسال طلب التحديث...';
-                try {
-                    await fetch(`${API_BASE_URL}/api/v1/tools/update-ytdlp`, { method: 'POST' });
-                    statusDiv.textContent = 'تم إرسال طلب التحديث. تحقق من وحدة التحكم في الخادم للمزيد من التفاصيل.';
-                } catch (error) {
-                    statusDiv.textContent = `❌ خطأ: ${error.message}`;
-                }
-            };
-
-            // --- Event Listeners ---
-            fetchButton.addEventListener('click', fetchDetails);
-            urlInput.addEventListener('keypress', (e) => e.key === 'Enter' && fetchDetails());
-            startDownloadButton.addEventListener('click', startDownload);
-
-            // Telegram Listeners
-            refreshDialogsBtn.addEventListener('click', fetchTelegramDialogs);
-
-            // Tools Listeners
-            imageConverterBtn.addEventListener('click', handleImageConversion);
-            videoMergerBtn.addEventListener('click', handleVideoMerge);
-            fileRepairBtn.addEventListener('click', handleFileRepair);
-            document.getElementById('update-ytdlp-btn').addEventListener('click', handleYtdlpUpdate);
-
-            // Library, Log, Settings Listeners
-            refreshLibraryBtn.addEventListener('click', fetchLibrary);
-            refreshLogBtn.addEventListener('click', fetchLog);
-            clearLogBtn.addEventListener('click', clearLog);
-            saveSettingsBtn.addEventListener('click', async () => {
-                settingsStatus.textContent = 'جاري حفظ الإعدادات...';
-                const body = {
-                    download_folder: settingsDownloadFolder.value,
-                    max_concurrent_downloads: parseInt(settingsMaxDownloads.value, 10)
-                };
-                const response = await fetch(`${API_BASE_URL}/api/v1/settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
-                const result = await response.json();
-                settingsStatus.textContent = response.ok ? '✅ تم حفظ الإعدادات بنجاح.' : `❌ خطأ: ${result.detail}`;
-            });
-            tgSendCodeBtn.addEventListener('click', async () => {
-                const phone = tgPhoneInput.value.trim();
-                if (!phone) {
-                    telegramLoginStatus.textContent = 'الرجاء إدخال رقم الهاتف.';
-                    return;
-                }
-                telegramLoginStatus.textContent = 'جاري إرسال الرمز...';
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/telegram/login/send-code`, {
-                        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ phone: phone })
-                    });
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.detail);
-                    appState.telegramLogin.phone = phone;
-                    appState.telegramLogin.phone_code_hash = result.phone_code_hash;
-                    telegramLoginStatus.textContent = 'تم إرسال الرمز. يرجى إدخاله أدناه.';
-                    tgLoginStepPhone.style.display = 'none';
-                    tgLoginStepCode.style.display = 'block';
-                    document.getElementById('tg-submit-btn').style.display = 'block';
-                    document.getElementById('tg-submit-btn').dataset.state = 'code';
-                } catch (error) {
-                    telegramLoginStatus.textContent = `❌ خطأ: ${error.message}`;
-                }
-            });
-            document.getElementById('tg-submit-btn').addEventListener('click', handleTelegramLogin);
-            document.getElementById('tg-logout-btn').addEventListener('click', handleTelegramLogout);
-
-            // --- Initializations ---
-            connectWebSocket();
-            // Automatically fetch data when switching to a tab for the first time
-            document.querySelector('.tab-button[onclick*="telegram-panel"]').addEventListener('click', () => {
-                if (dialogsList.children.length === 0) {
-                    fetchTelegramDialogs();
-                }
-            }, { once: true });
-            document.querySelector('.tab-button[onclick*="tools-panel"]').addEventListener('click', () => {
-                // تحقق من ffmpeg في كل مرة يتم فيها فتح تبويب الأدوات
-                checkAndSetupFfmpeg();
-            }, { once: true });
-            document.querySelector('.tab-button[onclick*="library-panel"]').addEventListener('click', () => {
-                if (libraryList.children.length === 0) {
-                    fetchLibrary();
-                }
-            }, { once: true });
-            document.querySelector('.tab-button[onclick*="log-panel"]').addEventListener('click', () => {
-                if (logList.children.length === 0) {
-                    fetchLog();
-                }
-            }, { once: true });
-            document.querySelector('.tab-button[onclick*="settings-panel"]').addEventListener('click', () => {
-                fetchAndShowSettings();
-            }, { once: true });
+        <div class="tool-category">
+          <h4 id="category-dev">Developer & Special Access</h4>
+          <a class="button" href="tel:*#85#" target="_blank" id="btn-adb-tecno"><img src="terminal.png" alt="ADB"> Enable ADB (Tecno/Infinix)</a> 
+          <a class="button" href="intent://com.samsung.android.dialer/#Intent;scheme=android-app;end" target="_blank" id="btn-samsung-dialer"><img src="phone.png" alt="Dialer"> Open Samsung Dialer</a>
+          <a class="button" href="intent://com.sec.android.app.servicemodeapp/#Intent;scheme=promote_USBSettings_scheme;end" target="_blank" id="btn-usb-settings"><img src="usb.png" alt="USB"> Open USB Settings</a>
+          <a class="button" href="intent://com.sec.android.app.hwmoduletest/#Intent;scheme=android-app;end" target="_blank" id="btn-hw-test"><img src="microscope.png" alt="HW Test"> HWModuleTest</a>
+        </div>
+      </div>
+
+      <div class="downloads">
+        <h3 id="downloads-title">⬇️ Downloads</h3>
+        <ul>
+          <li id="main-downloads-title" style="font-weight: bold; margin-bottom: 10px;">Main Tools:</li>
+          <li><a class="button" href="#" id="btn-unlocker"><i class="fa-solid fa-download"></i> Mostafa Unlocker v1.0 Beta</a></li>
+          <li><a class="button" href="#" id="btn-scripts"><i class="fa-solid fa-file-zipper"></i> Scripts & Tools Collection (ZIP)</a></li>
+          <li id="apk-downloads-title" style="font-weight: bold; margin-top: 20px; margin-bottom: 10px;">APK & FRP Files:</li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/QRScanner.apk" target="_blank" id="btn-dl-qr" download>QR Scanner</a></li>
+          <li><a class="button" href="https://github.com/farok6799/Mostafa-Unlocker-Hub/raw/refs/heads/main/activity-launcher-2-0-2.apk" target="_blank" id="btn-dl-AL" download>Activity Launcher</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/Android_8-9_GAM.apk" target="_blank" id="btn-dl-gam89" download>Google Account Manager 8-9</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/GoogleAccountManger5.apk" target="_blank" id="btn-dl-gam5" download>Google Account Manager 5</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/GoogleAccountManger6.apk" target="_blank" id="btn-dl-gam6" download>Google Account Manager 6</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/GooglePlayService.apk" target="_blank" id="btn-dl-gps" download>Google Play Service</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/Test_DPC.apk" target="_blank" id="btn-dl-dpc" download>Test DPC</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/hushsms.apk" target="_blank" id="btn-dl-hush" download>HushSMS</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/FRP_Android_7.apk" target="_blank" id="btn-dl-frp7" download>FRP Android 7</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/FRP_addROM.apk" target="_blank" id="btn-dl-addrom" download>FRP addROM</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/Phone_Clone.apk" target="_blank" id="btn-dl-clone" download>Phone Clone</a></li>
+          <li><a class="button" href="https://github.com/farok6799/Mostafa-Unlocker-Hub/raw/refs/heads/main/Package%20Disabler%20Pro%20(All%20Android)_11.0_apkcombo.app.apk" target="_blank" id="btn-dl-pd" download>Package Disabler</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/QuickShortcutMaker.apk" target="_blank" id="btn-dl-qsm" download>Quick Shortcut Maker</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/Smart_Switch_Mobile.apk" target="_blank" id="btn-dl-ssm" download>Smart Switch Mobile</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/apk/shieldx_install.apk" target="_blank" id="btn-dl-shieldx" download>Alliance Shield (APK)</a></li>
+          <li id="xml-downloads-title" style="font-weight: bold; margin-top: 20px; margin-bottom: 10px;">Package Disabler XML:</li>
+          <li><a class="button" href="https://raw.githubusercontent.com/farok6799/Mostafa-Unlocker-Hub/refs/heads/main/Disable%20System%20UI.xml" target="_blank" id="btn-dl-xml-ui" download>Disable System UI (XML)</a></li>
+          <li><a class="button" href="https://github.com/reindex-ot/frp_bypass/raw/main/frp/xml/pd_disable_apps_disable_googleservice.xml" target="_blank" id="btn-dl-xml-gs" download>Disable Google Service (XML)</a></li>
+        </ul>
+      </div>
+
+      <div class="coming-soon">
+        <h3 id="coming-soon-title">🚧 Coming Soon in Mostafa Unlocker Tool</h3>
+        <ul>
+          <li id="feature-1"><i class="fa-brands fa-apple"></i> iPhone Ramdisk (A7-A11)</li>
+          <li id="feature-2"><i class="fa-solid fa-unlock-keyhole"></i> FRP Removal for Android (ADB/FASTBOOT/SPD)</li>
+          <li id="feature-3"><i class="fa-solid fa-tablet-screen-button"></i> Samsung T509 MDM Unlock</li>
+          <li id="feature-4"><i class="fa-solid fa-sd-card"></i> Flash Custom Partitions (userdata, etc.)</li>
+          <li id="feature-5"><i class="fa-solid fa-cloud-arrow-up"></i> iCloud Bypass (Passcode / Hello)</li>
+          <li id="feature-6"><i class="fa-solid fa-signal"></i> Network Unlock / Fix Handshake (SPD Devices)</li>
+          <li id="feature-7"><i class="fa-solid fa-shield-virus"></i> Remove Ads / Viruses from Android</li>
+          <li id="feature-8"><i class="fa-solid fa-brain"></i> Backup & Restore iPhone Passcode Data</li>
+          <li id="feature-9"><i class="fa-solid fa-forward"></i> Skip Setup / Disable OTA Updates</li>
+        </ul>
+      </div>
+
+      <div class="contact">
+        <h3 id="contact-title">📞 Contact</h3>
+        <a href="https://wa.me/201129729147" target="_blank" id="link-whatsapp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
+        <a href="https://t.me/MostafaUnlocker" target="_blank" id="link-telegram"><i class="fa-brands fa-telegram"></i> Telegram</a>
+        <a href="https://www.facebook.com/share/1AyBCdPEDM/" target="_blank" id="link-facebook"><i class="fa-brands fa-facebook"></i> Facebook</a>
+        <a href="https://www.instagram.com/far0k6799/profilecard/?igsh=c2gxb3gyM25xOW1l" target="_blank" id="link-instagram"><i class="fa-brands fa-instagram"></i> Instagram</a>
+        <p>📞 +20 112 972 9147</p>
+      </div>
+    </section>
+  </div>
+  
+  <div id="services" class="tab-content services-page">
+    <section>
+      <h1 id="services-main-title">📱 خدمات مصطفى - Mostafa Unlocker Hub</h1>
+      <p id="services-description">جميع خدمات السوفت وير متاحة أونلاين أو حضوري حسب الاتفاق، بدقة واحترافية.</p>
+
+      <table>
+        <tr>
+          <th id="service-header">الخدمة</th>
+          <th id="description-header">الوصف</th>
+        </tr>
+
+        <tr>
+          <td id="icloud-bypass-title">تخطي iCloud - iPhone</td>
+          <td id="icloud-bypass-desc">
+            ✅ مدعوم من <strong>iPhone 6s حتى iPhone 16 Pro Max</strong><br><br>
+            - <strong>6s إلى X:</strong> تخطي بشبكة (Passcode / Hello)<br>
+            - <strong>XS إلى 16 Pro Max:</strong> تخطي بدون شبكة (Hello فقط)<br><br>
+            ⚠️ تأكد من الدعم قبل تنفيذ العملية، التواصل معنا لمعرفة هل الجهاز مدعوم حالياً أم لا، وهل التخطي متاح بشبكة أو بدون أو موقوف.
+          </td>
+        </tr>
+
+        <tr>
+          <td id="official-icloud-title">فك iCloud رسمي</td>
+          <td id="official-icloud-desc">متوفر فك iCloud رسمي للأجهزة المؤهلة عبر سيرفر Apple، حسب الشروط.</td>
+        </tr>
+
+        <tr>
+          <td id="mdm-removal-title">إزالة MDM - تابلت المدارس</td>
+          <td id="mdm-removal-desc">
+            ✅ إزالة MDM بالكامل للتابلتات التالية:<br><br>
+            - Galaxy Tab A9+: <strong>SM-X216B</strong><br>
+            - Galaxy Tab A7 (2024): <strong>SM-T509</strong><br>
+            - Galaxy Tab A7 LTE: <strong>SM-T505N</strong><br>
+            - Galaxy Tab A 2016: <strong>SM-T585</strong> (القديم بزرار الهوم)
+          </td>
+        </tr>
+
+        <tr>
+          <td id="frp-removal-title">إزالة FRP</td>
+          <td id="frp-removal-desc">
+            متاح إزالة FRP لجميع الشركات: Samsung، Huawei، Xiaomi، Oppo، Vivo، Realme، Infinix، Tecno، Nokia، وغيرها.
+          </td>
+        </tr>
+
+        <tr>
+          <td id="imei-repair-title">إصلاح IMEI / Serial</td>
+          <td id="imei-repair-desc">
+            إصلاح الرقم التسلسلي أو IMEI في الأجهزة المدعومة (مثل أجهزة MTK و SPD) في حالة وجود عطل أو فقد في الرقم.<br>
+            ⚠️ لا يتم تغيير الهوية الأصلية للجهاز.
+          </td>
+        </tr>
+      </table>
+
+      <div class="contact">
+        <p id="services-contact-text"><i class="fa-solid fa-headset"></i> للتواصل وطلب الخدمة:</p>
+        <a href="https://wa.me/201129729147" target="_blank" id="services-whatsapp"><i class="fa-brands fa-whatsapp"></i> راسلنا على واتساب</a>
+        <a href="https://t.me/MostafaUnlocker" target="_blank" id="services-telegram"><i class="fa-brands fa-telegram"></i> تليجرام</a>
+        <a href="https://www.facebook.com/share/1AyBCdPEDM/" target="_blank" id="services-facebook"><i class="fa-brands fa-facebook"></i> فيسبوك</a>
+        <a href="https://www.instagram.com/far0k6799" target="_blank" id="services-instagram"><i class="fa-brands fa-instagram"></i> إنستجرام</a>
+        <p id="services-pricing" style="margin-top: 15px;"><i class="fa-solid fa-comment-dollar"></i> الأسعار حسب نوع الجهاز ونوع الخدمة، يُفضل التواصل للتأكيد أولاً.</p>
+      </div>
+
+      <div class="notice">
+        <span id="legal-notice"><i class="fa-solid fa-gavel"></i> <strong>تنويه قانوني:</strong><br>
+        جميع الخدمات المقدمة مخصصة فقط للأجهزة المملوكة شرعيًا من قبل العميل، ولا يتم التعامل مع أي أجهزة مجهولة الهوية أو مخالفة للقوانين.<br>
+        نحن نلتزم بالقوانين الدولية والمحلية في تقديم خدمات السوفت وير، وأي إساءة استخدام تقع على مسؤولية المستخدم.</span>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    function openTab(tabName, event) {
+      // Hide all tab contents
+      const tabContents = document.getElementsByClassName('tab-content');
+      for (let i = 0; i < tabContents.length; i++) {
+        tabContents[i].classList.remove('active');
+      }
+      
+      // Remove active class from all buttons
+      const tabButtons = document.getElementsByClassName('tab-btn');
+      for (let i = 0; i < tabButtons.length; i++) {
+        tabButtons[i].classList.remove('active');
+      }
+      
+      // Show the selected tab and mark its button as active
+      document.getElementById(tabName).classList.add('active');
+      event.currentTarget.classList.add('active');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const languageToggle = document.getElementById('language-toggle');
+      let isEnglish = true;
+
+      const translations = {
+        en: {
+          'main-title': 'Mostafa Unlocker Hub',
+          'main-subtitle': 'Your All-in-One Software Solution',
+          'home-tab': 'Home',
+          'services-tab': 'Services',
+          'welcome-text': 'Welcome to Mostafa Unlocker Hub -- your trusted source for software solutions, tools, scripts, and online services for iPhone and Android devices.',
+          'online-tools-title': '🧪 Online Tools (Direct from Website)',
+          'btn-youtube': '<img src="youtube.png" alt="YouTube"> Open YouTube',          
+          'btn-settings': '<img src="settings.png" alt="Settings"> Open Settings',
+          'btn-galaxy': '<img src="samsung.png" alt="Galaxy Store"> Open Galaxy Store',
+          'btn-oppo-market': '<img src="oppo.png" alt="Oppo Market"> Open App Market (Oppo)', // Kept as is, it's the market
+          'btn-oppo-clone-phone': '<img src="clonephone_oppo.png" alt="Clone Phone"> Open Clone Phone (Oppo)',
+          'btn-huawei-clone-phone': '<img src="huawei.png" alt="Phone Clone"> Open Phone Clone (Huawei)',
+          'btn-vivo-market': '<img src="vivo.png" alt="Vivo Store"> Open App Store (Vivo)',
+          'btn-xiaomi-market': '<img src="xiaomi.png" alt="Xiaomi Store"> Open App Store (Xiaomi)',
+          'btn-easyshare': '<img src="easyshare.png" alt="EasyShare"> Open EasyShare (Vivo)',
+          'btn-chrome': '<img src="chrome.png" alt="Chrome"> Open Chrome Browser',
+          'btn-gmail': '<img src="gmail.png" alt="Gmail"> Open Gmail',
+          'btn-pincode': '<img src="key.png" alt="Pin Code"> Open Pin Code (Smart Lock)',
+          'btn-open-qr-scanner': '<img src="qrcode.png" alt="QR Scanner"> Open QR scanner',
+          'btn-my-files': '<img src="myfiles.png" alt="My Files"> Open My Files (Samsung)',
+          'btn-maps': '<img src="maps.png" alt="Maps"> Open Maps',
+          'btn-accessibility': '<img src="accessibility.png" alt="Accessibility"> Accessibility Settings',
+          'btn-set-lock': '<img src="setlock.png" alt="Set Lock"> Set Screen Lock',
+          'btn-google-login': '<img src="google.png" alt="Google Login"> Google Login',
+          'btn-google-search': '<img src="google.png" alt="Google Search"> Open Google Search',
+          'btn-play-store': '<img src="playstore.png" alt="Play Store"> Open Play Store',
+          'btn-play-services': '<img src="googleplayservices.png" alt="Play Services"> Google Play Services',          'btn-alliance-shield': '<img src="allianceshield.png" alt="Alliance Shield"> Open Alliance Shield',
+           'btn-alliance-shield-store': '<img src="allianceshield.png" alt="Galaxy Store"> Alliance Shield (Galaxy Store)', 
+          'btn-samsung-dialer': '<img src="phone.png" alt="Dialer"> Open Samsung Dialer',
+          'btn-usb-settings': '<img src="usb.png" alt="USB"> Open USB Settings',
+          'btn-activity-launcher': '<img src="rocket.png" alt="Activity Launcher"> Open Activity Launcher',
+          'btn-activity-manager': '<img src="tasks.png" alt="Activity Manager"> Open Activity Manager', 
+          'btn-activity-manager-store': '<img src="tasks.png" alt="Galaxy Store"> Activity Manager (Galaxy Store)',
+          'btn-files-shortcut': '<img src="folder.png" alt="Files Shortcut"> Open Files Shortcut', 
+          'btn-files-shortcut-store': '<img src="folder.png" alt="Galaxy Store"> Files Shortcut (Galaxy Store)',
+          'btn-xshare': '<img src="infinix.png" alt="XShare"> Open XShare (Infinix)',
+          'btn-shareme': '<img src="shareme.png" alt="ShareMe"> Open ShareMe (Xiaomi)',
+          'btn-mi-mover': '<img src="mimover.png" alt="Mi Mover"> Open Mi Mover (Xiaomi)',
+          'btn-xshare-store': '<img src="infinix.png" alt="Galaxy Store"> XShare (Galaxy Store)',
+          'btn-adb-tecno': '<img src="terminal.png" alt="ADB"> Enable ADB (Tecno/Infinix)',
+          'btn-package-disabler': '<img src="ban.png" alt="Package Disabler"> Open Package Disabler',
+          'btn-calculator': '<img src="calculator.png" alt="Calculator"> Open Calculator',
+          'btn-hw-test': '<img src="microscope.png" alt="HW Test"> HWModuleTest',
+          'btn-knox-mdm': '<img src="cloud.png" alt="Knox MDM"> Open Knox Cloud MDM',
+          'btn-knox-verify': '<img src="check.png" alt="Knox Verification"> Knox Verification',
+          'btn-smart-switch': '<img src="smartswitch.png" alt="Smart Switch"> Open Smart Switch',
+          'category-stores': 'App Stores',
+          'category-transfer': 'File Transfer & Backup',
+          'category-google': 'Google Apps',
+          'category-system': 'System & Settings',
+          'category-frp': 'FRP & Unlocking Tools',
+          'category-dev': 'Developer & Special Access',
+          'downloads-title': '⬇️ Downloads',
+          'btn-unlocker': '<i class="fa-solid fa-download"></i> Mostafa Unlocker v1.0 Beta',
+          'btn-scripts': '<i class="fa-solid fa-file-zipper"></i> Scripts & Tools Collection (ZIP)',
+          'main-downloads-title': 'Main Tools:',
+          'apk-downloads-title': 'APK & FRP Files:',
+          'btn-dl-qr': 'QR Scanner',
+          'btn-dl-gam89': 'Google Account Manager 8-9',
+          'btn-dl-gam5': 'Google Account Manager 5',
+          'btn-dl-gam6': 'Google Account Manager 6',
+          'btn-dl-gps': 'Google Play Service',
+          'btn-dl-dpc': 'Test DPC',
+          'btn-dl-hush': 'HushSMS',
+          'btn-dl-frp7': 'FRP Android 7',
+          'btn-dl-addrom': 'FRP addROM',
+          'btn-dl-clone': 'Phone Clone',
+          'btn-dl-pd': 'Package Disabler',
+          'btn-dl-qsm': 'Quick Shortcut Maker',
+          'btn-dl-ssm': 'Smart Switch Mobile',
+          'btn-dl-shieldx': 'Alliance Shield (APK)',
+          'xml-downloads-title': 'Package Disabler XML:',
+          'btn-dl-xml-ui': 'Disable System UI (XML)',
+          'btn-dl-xml-gs': 'Disable Google Service (XML)',
+          'coming-soon-title': '🚧 Coming Soon in Mostafa Unlocker Tool',
+          'feature-1': '<i class="fa-brands fa-apple"></i> iPhone Ramdisk (A7-A11)',
+          'feature-2': '<i class="fa-solid fa-unlock-keyhole"></i> FRP Removal for Android (ADB/FASTBOOT/SPD)',
+          'feature-3': '<i class="fa-solid fa-tablet-screen-button"></i> Samsung T509 MDM Unlock',
+          'feature-4': '<i class="fa-solid fa-sd-card"></i> Flash Custom Partitions (userdata, etc.)',
+          'feature-5': '<i class="fa-solid fa-cloud-arrow-up"></i> iCloud Bypass (Passcode / Hello)',
+          'feature-6': '<i class="fa-solid fa-signal"></i> Network Unlock / Fix Handshake (SPD Devices)',
+          'feature-7': '<i class="fa-solid fa-shield-virus"></i> Remove Ads / Viruses from Android',
+          'feature-8': '<i class="fa-solid fa-brain"></i> Backup & Restore iPhone Passcode Data',
+          'feature-9': '<i class="fa-solid fa-forward"></i> Skip Setup / Disable OTA Updates',
+          'contact-title': '📞 Contact',
+          'link-whatsapp': '<i class="fa-brands fa-whatsapp"></i> WhatsApp',
+          'link-telegram': '<i class="fa-brands fa-telegram"></i> Telegram',
+          'link-facebook': '<i class="fa-brands fa-facebook"></i> Facebook',
+          'link-instagram': '<i class="fa-brands fa-instagram"></i> Instagram',
+          'services-main-title': '📱 Mostafa Services - Mostafa Unlocker Hub',
+          'services-description': 'All software services are available online or in-person as agreed, with precision and professionalism.',
+          'service-header': 'Service',
+          'description-header': 'Description',
+          'icloud-bypass-title': 'iCloud Bypass - iPhone',
+          'icloud-bypass-desc': '✅ Supported from <strong>iPhone 6s to iPhone 16 Pro Max</strong><br><br>- <strong>6s to X:</strong> Bypass with network (Passcode / Hello)<br>- <strong>XS to 16 Pro Max:</strong> Bypass without network (Hello only)<br><br>⚠️ Make sure of support before performing the operation, contact us to know if the device is currently supported or not, and whether the bypass is available with network or without or stopped.',
+          'official-icloud-title': 'Official iCloud Unlock',
+          'official-icloud-desc': 'Official iCloud unlock available for eligible devices via Apple server, according to conditions.',
+          'mdm-removal-title': 'MDM Removal - School Tablets',
+          'mdm-removal-desc': '✅ Complete MDM removal for the following tablets:<br><br>- Galaxy Tab A9+: <strong>SM-X216B</strong><br>- Galaxy Tab A7 (2024): <strong>SM-T509</strong><br>- Galaxy Tab A7 LTE: <strong>SM-T505N</strong><br>- Galaxy Tab A 2016: <strong>SM-T585</strong> (old with home button)',
+          'frp-removal-title': 'FRP Removal',
+          'frp-removal-desc': 'FRP removal available for all brands: Samsung, Huawei, Xiaomi, Oppo, Vivo, Realme, Infinix, Tecno, Nokia, and others.',
+          'imei-repair-title': 'IMEI / Serial Repair',
+          'imei-repair-desc': 'Repair serial number or IMEI in supported devices (such as MTK and SPD devices) in case of malfunction or loss of number.<br>⚠️ The original identity of the device is not changed.',
+          'services-contact-text': '<i class="fa-solid fa-headset"></i> For contact and service request:',
+          'services-whatsapp': '<i class="fa-brands fa-whatsapp"></i> Message us on WhatsApp',
+          'services-telegram': '<i class="fa-brands fa-telegram"></i> Telegram',
+          'services-facebook': '<i class="fa-brands fa-facebook"></i> Facebook',
+          'services-instagram': '<i class="fa-brands fa-instagram"></i> Instagram',
+          'services-pricing': '<i class="fa-solid fa-comment-dollar"></i> Prices according to device type and service type, it is preferable to contact for confirmation first.',
+          'legal-notice': '<i class="fa-solid fa-gavel"></i> <strong>Legal Notice:</strong><br>All services provided are intended only for devices legally owned by the client, and we do not deal with any devices of unknown identity or violating laws.<br>We comply with international and local laws in providing software services, and any misuse is the responsibility of the user.'
+        },
+        ar: {
+          'main-title': 'مركز مصطفى لفك القفل',
+          'main-subtitle': 'الحل البرمجي الشامل',
+          'home-tab': 'الرئيسية',
+          'services-tab': 'الخدمات',
+          'welcome-text': 'مرحبًا بك في مركز مصطفى لفك القفل -- المكان الموثوق لحلول السوفت وير، الأدوات، السكربتات، والخدمات المباشرة لأجهزة iPhone و Android.',
+          'online-tools-title': '🧪 أدوات عبر الإنترنت (مباشرة من الموقع)',
+          'btn-youtube': '<img src="youtube.png" alt="YouTube"> فتح يوتيوب',          
+          'btn-settings': '<img src="settings.png" alt="Settings"> فتح الإعدادات',
+          'btn-galaxy': '<img src="samsung.png" alt="Galaxy Store"> فتح متجر Galaxy',
+          'btn-oppo-market': '<img src="oppo.png" alt="Oppo Market"> فتح متجر تطبيقات اوبو', // Kept as is, it's the market
+          'btn-oppo-clone-phone': '<img src="clonephone_oppo.png" alt="Clone Phone"> فتح تطبيق استنساخ الهاتف (اوبو)',
+          'btn-huawei-clone-phone': '<img src="huawei.png" alt="Phone Clone"> فتح تطبيق استنساخ الهاتف (هواوي)',
+          'btn-vivo-market': '<img src="vivo.png" alt="Vivo Store"> فتح متجر تطبيقات فيفو',
+          'btn-xiaomi-market': '<img src="xiaomi.png" alt="Xiaomi Store"> فتح متجر تطبيقات شاومي',
+          'btn-easyshare': '<img src="easyshare.png" alt="EasyShare"> فتح EasyShare (فيفو)',
+          'btn-chrome': '<img src="chrome.png" alt="Chrome"> فتح متصفح كروم',
+          'btn-gmail': '<img src="gmail.png" alt="Gmail"> فتح Gmail',
+          'btn-pincode': '<img src="key.png" alt="Pin Code"> فتح رمز PIN (القفل الذكي)',
+          'btn-open-qr-scanner': '<img src="qrcode.png" alt="QR Scanner"> فتح ماسح QR',
+          'btn-my-files': '<img src="myfiles.png" alt="My Files"> فتح ملفاتي (سامسونج)',
+          'btn-maps': '<img src="maps.png" alt="Maps"> فتح الخرائط',
+          'btn-accessibility': '<img src="accessibility.png" alt="Accessibility"> إعدادات إمكانية الوصول',
+          'btn-set-lock': '<img src="setlock.png" alt="Set Lock"> تعيين قفل الشاشة',
+          'btn-google-login': '<img src="google.png" alt="Google Login"> تسجيل دخول جوجل',
+          'btn-google-search': '<img src="google.png" alt="Google Search"> فتح بحث جوجل',
+          'btn-play-store': '<img src="playstore.png" alt="Play Store"> فتح متجر بلاي',
+          'btn-play-services': '<img src="googleplayservices.png" alt="Play Services"> خدمات جوجل بلاي',          'btn-alliance-shield': '<img src="allianceshield.png" alt="Alliance Shield"> فتح Alliance Shield',
+           'btn-alliance-shield-store': '<img src="allianceshield.png" alt="Galaxy Store"> Alliance Shield (متجر Galaxy)', 
+          'btn-samsung-dialer': '<img src="phone.png" alt="Dialer"> فتح هاتف سامسونج',
+          'btn-usb-settings': '<img src="usb.png" alt="USB"> فتح إعدادات USB',
+          'btn-activity-launcher': '<img src="rocket.png" alt="Activity Launcher"> فتح Activity Launcher',
+          'btn-activity-manager': '<img src="tasks.png" alt="Activity Manager"> فتح مدير الأنشطة', 
+          'btn-activity-manager-store': '<img src="tasks.png" alt="Galaxy Store"> مدير الأنشطة (متجر Galaxy)',
+          'btn-files-shortcut': '<img src="folder.png" alt="Files Shortcut"> فتح اختصار الملفات', 
+          'btn-files-shortcut-store': '<img src="folder.png" alt="Galaxy Store"> اختصار الملفات (متجر Galaxy)',
+          'btn-xshare': '<img src="infinix.png" alt="XShare"> فتح XShare (انفينكس)',
+          'btn-shareme': '<img src="shareme.png" alt="ShareMe"> فتح ShareMe (شاومي)',
+          'btn-mi-mover': '<img src="mimover.png" alt="Mi Mover"> فتح Mi Mover (شاومي)',
+          'btn-xshare-store': '<img src="infinix.png" alt="Galaxy Store"> XShare (متجر Galaxy)',
+          'btn-adb-tecno': '<img src="terminal.png" alt="ADB"> تفعيل ADB (Tecno/Infinix)',
+          'btn-package-disabler': '<img src="ban.png" alt="Package Disabler"> فتح Package Disabler',
+          'btn-calculator': '<img src="calculator.png" alt="Calculator"> فتح الآلة الحاسبة',
+          'btn-hw-test': '<img src="microscope.png" alt="HW Test"> اختبار المكونات',
+          'btn-knox-mdm': '<img src="cloud.png" alt="Knox MDM"> فتح Knox Cloud MDM',
+          'btn-knox-verify': '<img src="check.png" alt="Knox Verification"> تحقق Knox',
+          'btn-smart-switch': '<img src="smartswitch.png" alt="Smart Switch"> فتح Smart Switch',
+          'category-stores': 'متاجر التطبيقات',
+          'category-transfer': 'نقل الملفات والنسخ الاحتياطي',
+          'category-google': 'تطبيقات جوجل',
+          'category-system': 'النظام والإعدادات',
+          'category-frp': 'أدوات FRP والتخطي',
+          'category-dev': 'أدوات المطور والوصول الخاص',
+          'downloads-title': '⬇️ التنزيلات',
+          'btn-unlocker': '<i class="fa-solid fa-download"></i> مصطفى أونلوكر v1.0 بيتا',
+          'btn-scripts': '<i class="fa-solid fa-file-zipper"></i> مجموعة البرامج النصية والأدوات (ZIP)',
+          'main-downloads-title': 'الأدوات الرئيسية:',
+          'apk-downloads-title': 'ملفات APK و FRP:',
+          'btn-dl-qr': 'ماسح QR',
+          'btn-dl-gam89': 'مدير حساب جوجل 8-9',
+          'btn-dl-gam5': 'مدير حساب جوجل 5',
+          'btn-dl-gam6': 'مدير حساب جوجل 6',
+          'btn-dl-gps': 'خدمة جوجل بلاي',
+          'btn-dl-dpc': 'Test DPC',
+          'btn-dl-hush': 'HushSMS',
+          'btn-dl-frp7': 'FRP أندرويد 7',
+          'btn-dl-addrom': 'FRP addROM',
+          'btn-dl-clone': 'Phone Clone',
+          'btn-dl-pd': 'Package Disabler',
+          'btn-dl-qsm': 'Quick Shortcut Maker',
+          'btn-dl-ssm': 'Smart Switch Mobile',
+          'btn-dl-shieldx': 'Alliance Shield (APK)',
+          'xml-downloads-title': 'ملفات XML لـ Package Disabler:',
+          'btn-dl-xml-ui': 'تعطيل واجهة النظام (XML)',
+          'btn-dl-xml-gs': 'تعطيل خدمة جوجل (XML)',
+          'coming-soon-title': '🚧 قريباً في أداة مصطفى لفك القفل',
+          'feature-1': '<i class="fa-brands fa-apple"></i> iPhone Ramdisk (A7-A11)',
+          'feature-2': '<i class="fa-solid fa-unlock-keyhole"></i> إزالة FRP لنظام Android (ADB/FASTBOOT/SPD)',
+          'feature-3': '<i class="fa-solid fa-tablet-screen-button"></i> فتح MDM لجهاز Samsung T509',
+          'feature-4': '<i class="fa-solid fa-sd-card"></i> فلاش أقسام مخصصة (بيانات المستخدم، إلخ.)',
+          'feature-5': '<i class="fa-solid fa-cloud-arrow-up"></i> تجاوز iCloud (رمز المرور / مرحبًا)',
+          'feature-6': '<i class="fa-solid fa-signal"></i> فتح الشبكة / إصلاح المصافحة (أجهزة SPD)',
+          'feature-7': '<i class="fa-solid fa-shield-virus"></i> إزالة الإعلانات / الفيروسات من Android',
+          'feature-8': '<i class="fa-solid fa-brain"></i> النسخ الاحتياطي واستعادة بيانات رمز مرور iPhone',
+          'feature-9': '<i class="fa-solid fa-forward"></i> تخطي الإعداد / تعطيل تحديثات OTA',
+          'contact-title': '📞 تواصل معنا',
+          'link-whatsapp': '<i class="fa-brands fa-whatsapp"></i> واتساب',
+          'link-telegram': '<i class="fa-brands fa-telegram"></i> تيليجرام',
+          'link-facebook': '<i class="fa-brands fa-facebook"></i> فيسبوك',
+          'link-instagram': '<i class="fa-brands fa-instagram"></i> انستغرام',
+          'services-main-title': '📱 خدمات مصطفى - Mostafa Unlocker Hub',
+          'services-description': 'جميع خدمات السوفت وير متاحة أونلاين أو حضوري حسب الاتفاق، بدقة واحترافية.',
+          'service-header': 'الخدمة',
+          'description-header': 'الوصف',
+          'icloud-bypass-title': 'تخطي iCloud - iPhone',
+          'icloud-bypass-desc': '✅ مدعوم من <strong>iPhone 6s حتى iPhone 16 Pro Max</strong><br><br>- <strong>6s إلى X:</strong> تخطي بشبكة (Passcode / Hello)<br>- <strong>XS إلى 16 Pro Max:</strong> تخطي بدون شبكة (Hello فقط)<br><br>⚠️ تأكد من الدعم قبل تنفيذ العملية، التواصل معنا لمعرفة هل الجهاز مدعوم حالياً أم لا، وهل التخطي متاح بشبكة أو بدون أو موقوف.',
+          'official-icloud-title': 'فك iCloud رسمي',
+          'official-icloud-desc': 'متوفر فك iCloud رسمي للأجهزة المؤهلة عبر سيرفر Apple، حسب الشروط.',
+          'mdm-removal-title': 'إزالة MDM - تابلت المدارس',
+          'mdm-removal-desc': '✅ إزالة MDM بالكامل للتابلتات التالية:<br><br>- Galaxy Tab A9+: <strong>SM-X216B</strong><br>- Galaxy Tab A7 (2024): <strong>SM-T509</strong><br>- Galaxy Tab A7 LTE: <strong>SM-T505N</strong><br>- Galaxy Tab A 2016: <strong>SM-T585</strong> (القديم بزرار الهوم)',
+          'frp-removal-title': 'إزالة FRP',
+          'frp-removal-desc': 'متاح إزالة FRP لجميع الشركات: Samsung، Huawei، Xiaomi، Oppo، Vivo، Realme، Infinix، Tecno، Nokia، وغيرها.',
+          'imei-repair-title': 'إصلاح IMEI / Serial',
+          'imei-repair-desc': 'إصلاح الرقم التسلسلي أو IMEI في الأجهزة المدعومة (مثل أجهزة MTK و SPD) في حالة وجود عطل أو فقد في الرقم.<br>⚠️ لا يتم تغيير الهوية الأصلية للجهاز.',
+          'services-contact-text': '<i class="fa-solid fa-headset"></i> للتواصل وطلب الخدمة:',
+          'services-whatsapp': '<i class="fa-brands fa-whatsapp"></i> راسلنا على واتساب',
+          'services-telegram': '<i class="fa-brands fa-telegram"></i> تليجرام',
+          'services-facebook': '<i class="fa-brands fa-facebook"></i> فيسبوك',
+          'services-instagram': '<i class="fa-brands fa-instagram"></i> إنستجرام',
+          'services-pricing': '<i class="fa-solid fa-comment-dollar"></i> الأسعار حسب نوع الجهاز ونوع الخدمة، يُفضل التواصل للتأكيد أولاً.',
+          'legal-notice': '<i class="fa-solid fa-gavel"></i> <strong>تنويه قانوني:</strong><br>جميع الخدمات المقدمة مخصصة فقط للأجهزة المملوكة شرعيًا من قبل العميل، ولا يتم التعامل مع أي أجهزة مجهولة الهوية أو مخالفة للقوانين.<br>نحن نلتزم بالقوانين الدولية والمحلية في تقديم خدمات السوفت وير، وأي إساءة استخدام تقع على مسؤولية المستخدم.'
+        }
+      };
+
+      const updateContent = () => {
+        const lang = isEnglish ? 'en' : 'ar';
+        const t = translations[lang];
+
+        // Update all elements with their IDs
+        Object.keys(t).forEach(id => {
+          const element = document.getElementById(id);
+          if (element) {
+            element.innerHTML = t[id];
+          }
         });
-    </script>
+
+        // Update language toggle button
+        languageToggle.textContent = isEnglish ? 'العربية' : 'English';
+        
+        // Update page direction for Arabic
+        document.documentElement.dir = isEnglish ? 'ltr' : 'rtl';
+      };
+
+      languageToggle.addEventListener('click', () => {
+        isEnglish = !isEnglish;
+        updateContent();
+      });
+
+      // Initial content load
+      updateContent();
+    });
+  </script>
 </body>
+
 </html>
