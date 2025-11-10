@@ -282,11 +282,6 @@ async def start_download_legacy(request: DownloadRequest):
     يبدأ عملية تحميل في الخلفية.
     يستخدم WebSockets لإرسال تحديثات التقدم.
     """
-    # --- جديد: التعامل مع روابط Threads ---
-    if "threads.net" in request.url:
-        if not request.url.endswith('/embed'):
-            request.url = request.url.split('?')[0] + '/embed'
-
     # --- الحل: استخدام client_id من الطلب كمعرف فريد للمهمة ---
     # هذا يضمن أن الواجهة الأمامية والخلفية يتفقان على نفس المعرف.
     task_id = request.client_id
@@ -300,6 +295,12 @@ async def start_download_legacy(request: DownloadRequest):
         # بما أننا لا نمرر معرف الاتصال الأصلي، سنفترض أن task_id يحتوي على الجزء الأول منه.
         websocket_client_id = task_id.split('-')[0] + '-' + task_id.split('-')[1] + '-' + task_id.split('-')[2]
         asyncio.run_coroutine_threadsafe(manager.send_json(websocket_client_id, data), loop)
+
+    # --- الحل الجذري لمشكلة Threads: تعديل الرابط قبل أي عملية أخرى ---
+    # هذا يضمن أن yt-dlp يحصل على الرابط الصحيح من البداية.
+    if "threads.net" in request.url or "threads.com" in request.url:
+        if not request.url.endswith('/embed'):
+            request.url = request.url.split('?')[0].split('&')[0] + '/embed'
 
     worker = None
     if request.source == 'yt-dlp':

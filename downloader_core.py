@@ -751,22 +751,6 @@ class YTDLRunner(threading.Thread):
                     }
 
 
-            # --- الحل الجذري لمشكلة TikTok: محاولة التحميل المباشر كخطة بديلة ---
-            is_tiktok_url = 'tiktok.com' in self.url
-            if is_tiktok_url:
-                # --- إصلاح: تخزين آخر معلومات تم جمعها لاستخدامها عند الإلغاء ---
-                try:
-                    with yt_dlp.YoutubeDL({**ydl_opts, 'outtmpl': os.path.join(self.download_folder, info_dict.get('title', 'video') + '.%(ext)s')}) as ydl:
-
-                        ydl.download([self.url])
-                    # إذا نجح، اخرج من الحلقة
-                    break
-                except Exception as ytdl_error:
-                    # إذا فشل yt-dlp، جرب الطريقة اليدوية
-                    self._manual_tiktok_download()
-                    # سواء نجحت الطريقة اليدوية أو فشلت، اخرج من الحلقة لأننا حاولنا كل شيء
-                    break
-
             # --- المنطق الأصلي للمواقع الأخرى ---
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
