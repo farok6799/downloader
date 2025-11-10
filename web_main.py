@@ -230,6 +230,12 @@ async def fetch_details(request: UrlRequest):
     if is_telegram_post:
         try:
             # --- الحل: استدعاء دالة جديدة لجلب تفاصيل المنشور الحقيقية ---
+            # --- تعديل: تمرير إعدادات yt-dlp لدعم ملفات تعريف الارتباط ---
+            # هذا يضمن أن yt-dlp يمكنه استخدام الكوكيز إذا لزم الأمر.
+            # --- الحل الجذري لمشكلة Threads: تعديل الرابط قبل أي عملية أخرى ---
+            if "threads.net" in url or "threads.com" in url:
+                if not url.endswith('/embed'):
+                    url = url.split('?')[0].split('&')[0] + '/embed'
             details = await get_telegram_post_details_async(url, tg_settings)
             # إرجاع التفاصيل الحقيقية للواجهة الأمامية
             return {**details, "source": "telethon"}
@@ -246,7 +252,12 @@ async def fetch_details(request: UrlRequest):
     ])
 
     if is_service_url:
-        info, error = get_yt_dlp_info(url)
+        # --- الحل الجذري لمشكلة Threads: تعديل الرابط قبل أي عملية أخرى ---
+        if "threads.net" in url or "threads.com" in url:
+            if not url.endswith('/embed'):
+                url = url.split('?')[0].split('&')[0] + '/embed'
+
+        info, error = get_yt_dlp_info(url, SETTINGS)
         if error:
             raise HTTPException(status_code=400, detail=f"فشل جلب المعلومات من yt-dlp: {error}")
         return {
