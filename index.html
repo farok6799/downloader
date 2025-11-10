@@ -478,6 +478,16 @@
                 a.remove();
             };
 
+            // --- الحل الجذري والنهائي: دالة مركزية لتعديل الروابط ---
+            // هذه الدالة تحاكي تماماً المنطق الموجود في الخادم والبرنامج المكتبي.
+            const prepareUrl = (url) => {
+                if (url.includes("threads.net") || url.includes("threads.com")) {
+                    if (!url.endsWith('/embed')) {
+                        return url.split('?')[0].split('&')[0] + '/embed';
+                    }
+                }
+                return url;
+            };
             // --- WebSocket Logic ---
             const connectWebSocket = () => {
                 // --- تعديل جذري: استخدام عنوان خادم Railway للاتصال بـ WebSocket ---
@@ -548,18 +558,21 @@
 
             // --- Downloader Logic ---
             const fetchDetails = async () => {
-                const url = urlInput.value.trim();
-                if (!url) return;
+                const originalUrl = urlInput.value.trim();
+                if (!originalUrl) return;
 
                 showStatus('جاري فحص الرابط...', false);
                 fetchButton.disabled = true;
                 detailsContainer.style.display = 'none';
 
                 try {
+                    // --- الحل: استدعاء الدالة المركزية لتجهيز الرابط قبل إرساله ---
+                    const preparedUrl = prepareUrl(originalUrl);
+
                     const response = await fetch(`${API_BASE_URL}/api/v1/details`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url }),
+                        body: JSON.stringify({ url: preparedUrl }), // إرسال الرابط المعدل
                     });
 
                     if (!response.ok) {
@@ -568,7 +581,7 @@
                     }
 
                     const data = await response.json();
-                    appState.currentDownloadDetails = { url, ...data };
+                    appState.currentDownloadDetails = { url: preparedUrl, ...data }; // تخزين الرابط المعدل للاستخدامات الأخرى
 
                     filenameSpan.textContent = data.filename;
                     filesizeSpan.textContent = data.total_size ? formatSize(data.total_size) : 'غير معروف';
@@ -598,25 +611,58 @@
             };
 
             const startDownload = async () => {
-                 if (!appState.currentDownloadDetails) return;
+                if (!appState.currentDownloadDetails) return;
 
-                const { url, source, filename, details } = appState.currentDownloadDetails;
+                let { url, source, filename, details } = appState.currentDownloadDetails;
                 const formatId = formatsSelect.value || (details?.format_id);
+                const audioOnly = false; // يمكن إضافة خيار في الواجهة الأمامية للتحكم بهذا
 
-                // --- الحل الجذري لمشكلة CORS ---
-                // بدلاً من استخدام fetch، نقوم بتوجيه المتصفح مباشرة إلى رابط البث.
-                // المتصفح سيقوم تلقائياً بمتابعة أي إعادة توجيه من الخادم (Redirect)
-                // وسيبدأ التحميل مباشرة من المصدر النهائي (مثل googlevideo.com) دون مشاكل CORS.
-                // هذه الطريقة لا تسمح لنا بالتحقق من استجابة الخادم (مثل خطأ 418)،
-                // ولكنها الطريقة الصحيحة للتعامل مع التحميلات المباشرة.
-                const streamUrl = new URL(`${API_BASE_URL}/api/v1/stream`);
-                streamUrl.searchParams.append('url', url);
-                streamUrl.searchParams.append('filename', filename);
-                streamUrl.searchParams.append('source', source); // تم تصحيح الخطأ الإملائي هنا أيضاً
-                if (formatId) streamUrl.searchParams.append('format_id', formatId);
+                // URL stored in appState.currentDownloadDetails.url is already prepared
+                const preparedUrl = url;
 
-                // فتح الرابط الجديد، مما يؤدي إلى بدء التحميل في المتصفح
-                window.location.href = streamUrl.href;
+                // Create a unique task ID for this download
+                const taskId = `${appState.clientId}-${Date.now()}`;
+                createDownloadItem(taskId, filename); // Add to UI immediately
+
+                try {
+                    let response;
+                    if (source === 'yt-dlp') {
+                        // For yt-dlp sources, use the /api/v1/download endpoint
+                        response = await fetch(`${API_BASE_URL}/api/v1/download`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                url: preparedUrl,
+                                client_id: taskId,
+                                source: source,
+                                format_id: formatId,
+                                audio_only: audioOnly
+                            }),
+                        });
+                    } else { // Direct download (or Telegram)
+                        // For direct downloads, we can still use the stream endpoint for browser-initiated download
+                        const streamUrl = new URL(`${API_BASE_URL}/api/v1/stream`);
+                        streamUrl.searchParams.append('url', preparedUrl);
+                        streamUrl.searchParams.append('filename', filename);
+                        streamUrl.searchParams.append('source', source);
+                        window.location.href = streamUrl.href;
+                        return; // Exit after redirect
+                    }
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'فشل بدء التحميل');
+                    }
+
+                    showStatus('بدأ التحميل في الخلفية. تحقق من قائمة التحميلات.', false);
+                    urlInput.value = ''; // Clear input
+                    detailsContainer.style.display = 'none'; // Hide details
+                } catch (error) {
+                    updateDownloadItemError(taskId, `خطأ: ${error.message}`);
+                } finally {
+                    fetchButton.disabled = false;
+                    startDownloadButton.disabled = false;
+                }
             };
 
             const createDownloadItem = (taskId, filename) => {
