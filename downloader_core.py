@@ -994,6 +994,10 @@ def get_yt_dlp_info(url, settings={}):
     except Exception as e:
         # Return the most relevant error from the logger if available
         if logger.errors:
+            # --- جديد: طباعة رسائل الخطأ من yt-dlp في سجل الخادم ---
+            # هذا يساعد في تتبع المشاكل بشكل أفضل.
+            for err in logger.errors:
+                print(f"yt-dlp error: {err}")
             return None, logger.errors[0]
         return None, str(e)
 
