@@ -618,58 +618,56 @@
                 const audioOnly = false; // يمكن إضافة خيار في الواجهة الأمامية للتحكم بهذا
 
                 // URL stored in appState.currentDownloadDetails.url is already prepared
-                const preparedUrl = url;
+                const preparedUrl = url; 
 
-                // Create a unique task ID for this download
-                const taskId = `${appState.clientId}-${Date.now()}`;
-                createDownloadItem(taskId, filename); // Add to UI immediately
+                // --- تعديل جذري: التعامل مع نقطة النهاية الجديدة التي تبث الملف مباشرة ---
+                // هذا المنطق يعمل مع كل من 'direct' و 'yt-dlp'
+                showStatus('جاري تجهيز التحميل... سيظهر مربع حوار الحفظ قريباً.', false);
+                startDownloadButton.disabled = true;
 
                 try {
-                    let response;
-                    if (source === 'yt-dlp') {
-                        // For yt-dlp sources, use the /api/v1/download endpoint
-                        response = await fetch(`${API_BASE_URL}/api/v1/download`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                url: preparedUrl,
-                                client_id: taskId,
-                                source: source,
-                                format_id: formatId,
-                                audio_only: audioOnly
-                            }),
-                        });
-                    } else { // Direct download (or Telegram)
-                        // For direct downloads, we can still use the stream endpoint for browser-initiated download
-                        const streamUrl = new URL(`${API_BASE_URL}/api/v1/stream`);
-                        streamUrl.searchParams.append('url', preparedUrl);
-                        streamUrl.searchParams.append('filename', filename);
-                        streamUrl.searchParams.append('source', source);
-                        window.location.href = streamUrl.href;
-                        return; // Exit after redirect
-                    }
-
+                    const response = await fetch(`${API_BASE_URL}/api/v1/download`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            url: preparedUrl,
+                            filename: filename, // إرسال اسم الملف المقترح
+                            source: source,
+                            format_id: formatId,
+                            audio_only: audioOnly
+                        }),
+                    });
+                    
                     if (!response.ok) {
                         const error = await response.json();
-                        throw new Error(error.detail || 'فشل بدء التحميل');
+                        throw new Error(error.detail || 'فشل تجهيز التحميل من الخادم');
                     }
 
-                    showStatus('بدأ التحميل في الخلفية. تحقق من قائمة التحميلات.', false);
+                    // الخادم يرسل الآن الملف مباشرة.
+                    // نحصل عليه كـ "blob" ونقوم بتشغيل التحميل في المتصفح.
+                    const blob = await response.blob();
+                    
+                    // استخدام دالة downloadBlob المساعدة لتشغيل التحميل
+                    downloadBlob(blob, filename);
+
+                    showStatus('✅ تم بدء التحميل بنجاح في متصفحك!', false);
                     urlInput.value = ''; // Clear input
                     detailsContainer.style.display = 'none'; // Hide details
+
                 } catch (error) {
-                    updateDownloadItemError(taskId, `خطأ: ${error.message}`);
+                    showStatus(`خطأ: ${error.message}`, true);
                 } finally {
-                    fetchButton.disabled = false;
                     startDownloadButton.disabled = false;
                 }
             };
 
             const createDownloadItem = (taskId, filename) => {
+                // لا ننشئ عنصر تحميل إلا للمهام التي تعمل في الخلفية (مثل تيليجرام)
                 const clone = downloadItemTemplate.content.cloneNode(true);
                 const downloadItem = clone.querySelector('.download-item');
                 downloadItem.id = `task-${taskId}`;
                 downloadItem.querySelector('.card-title').textContent = filename;
+                downloadItem.querySelector('.status-text').textContent = 'جاري البدء...';
                 
                 downloadItem.querySelector('.pause-btn').addEventListener('click', () => pauseDownload(taskId));
                 downloadItem.querySelector('.resume-btn').addEventListener('click', () => resumeDownload(taskId));
