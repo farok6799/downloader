@@ -907,16 +907,20 @@ class YTDLRunner(threading.Thread):
 
         cleanup_thread = threading.Thread(target=background_cleanup, daemon=True, name=f"Cleanup-YTDL-{self.task_id}")
         cleanup_thread.start()
-
-def get_yt_dlp_info(url, settings=None):
+def get_yt_dlp_info(url, settings={}):
     if not YTDLP_AVAILABLE: return None, "مكتبة yt-dlp غير مثبتة."
     
-    settings = settings or {}
+
     # Custom logger to capture warnings and errors from yt-dlp.
     class YTDLLogger:
         def __init__(self):
             self.warnings = []
             self.errors = []
+        def debug(self, msg):
+            # تجاهل رسائل تصحيح الأخطاء الطويلة المتعلقة بـ cookies
+            if 'cookie' in msg.lower():
+                return
+            pass            
         def debug(self, msg):
             # تجاهل رسائل تصحيح الأخطاء الطويلة المتعلقة بـ cookies
             if 'cookie' in msg.lower():
@@ -1226,77 +1230,6 @@ class FileRepairWorker(threading.Thread):
         except Exception as e:
             if self.update_callback:
                 self.update_callback({"status": "error", "message": f"❌ خطأ غير متوقع: {e}"})
-
-def get_yt_dlp_info(url):
-    if not YTDLP_AVAILABLE: return None, "مكتبة yt-dlp غير مثبتة."
-    
-    # Custom logger to capture warnings and errors from yt-dlp.
-    class YTDLLogger:
-        def __init__(self):
-            self.warnings = []
-            self.errors = []
-        def debug(self, msg): pass
-        def info(self, msg): pass
-        def warning(self, msg): self.warnings.append(msg)
-        def error(self, msg):
-            # yt-dlp sometimes prefixes errors with "ERROR: ". We can strip that.
-            if msg.startswith('ERROR: '):
-                msg = msg[7:]
-            self.errors.append(msg)
-
-    logger = YTDLLogger()
-    base_opts = {
-        'quiet': True, 'noplaylist': True, 'nocheckcertificate': True,
-        'skip_download': True, 'logger': logger
-    }
-
-    # --- First attempt: Standard info extraction ---
-    try:
-        with yt_dlp.YoutubeDL(base_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            if info:
-                return info, None # Success on the first try
-    except yt_dlp.utils.DownloadError as e:
-        # Check if the error is the specific "no video" error for Instagram.
-        # If so, we'll fall through to the next attempt. Otherwise, it's a real error.
-        if "There is no video in this post" not in str(e):
-            return None, str(e)
-    except Exception as e:
-        return None, str(e)
-
-    # --- Second attempt (if first failed): For Instagram images ---
-    # This is triggered if the first attempt failed with "no video" error.
-    # We try again, telling yt-dlp not to look for videos.
-    if any("There is no video in this post" in err for err in logger.errors):
-        try:
-            image_opts = base_opts.copy()
-            # This option is not a standard yt-dlp option, but we can simulate it
-            # by how we handle the result. The key is that the first attempt failed.
-            # The logic in main_pyside.py already handles image-only results.
-            # Let's re-run with the same options, but check the logger output.
-            with yt_dlp.YoutubeDL(base_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-                if info:
-                    return info, None
-        except Exception as e:
-            # If this also fails, return the original error.
-            return None, str(e)
-
-    # --- Final fallback: If info is still None, check captured logs for a clear message ---
-    try:
-        with yt_dlp.YoutubeDL(base_opts) as ydl:
-            info = ydl.extract_info(url, download=False)
-            if not info:
-                for w in logger.warnings:
-                    if 'returned nothing' in w:
-                        return None, "لم يتم العثور على فيديو في الرابط. تأكد أن الرابط عام وصحيح."
-                return None, "فشل استخراج المعلومات. قد يكون الرابط غير مدعوم أو خاص."
-            return info, None
-    except Exception as e:
-        # Return the most relevant error from the logger if available
-        if logger.errors:
-            return None, logger.errors[0]
-        return None, str(e)
 
 def get_yt_dlp_playlist_info(url):
     """

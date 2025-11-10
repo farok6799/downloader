@@ -238,10 +238,11 @@ async def fetch_details(request: UrlRequest):
 
     # تحديد إذا كان الرابط لموقع مثل يوتيوب أم رابط مباشر
     # --- تعديل: إضافة t.me/s/ للروابط الخدمية (القنوات العامة) ---
+    # --- جديد: إضافة threads و x.com ---
     is_service_url = any(domain in url for domain in [
         'youtube.com', 'youtu.be', 'facebook.com', 
-        'twitter.com', 'instagram.com', 'tiktok.com',
-        't.me/s/' # القنوات العامة فقط
+        'twitter.com', 'x.com', 'instagram.com', 'tiktok.com',
+        'threads.net', 't.me/s/' # القنوات العامة فقط
     ])
 
     if is_service_url:
@@ -249,7 +250,9 @@ async def fetch_details(request: UrlRequest):
         if error:
             raise HTTPException(status_code=400, detail=f"فشل جلب المعلومات من yt-dlp: {error}")
         return {
-            "filename": info.get('title', 'unknown_video'),
+            # --- تحسين: استخدام اسم الملف من yt-dlp إذا كان متاحاً ---
+            # هذا يعطي أسماء ملفات أفضل لـ Instagram و TikTok
+            "filename": info.get('filename', info.get('title', 'unknown_video')),
             "total_size": info.get('filesize') or info.get('filesize_approx'),
             "source": "yt-dlp",
             "details": info
@@ -279,6 +282,11 @@ async def start_download_legacy(request: DownloadRequest):
     يبدأ عملية تحميل في الخلفية.
     يستخدم WebSockets لإرسال تحديثات التقدم.
     """
+    # --- جديد: التعامل مع روابط Threads ---
+    if "threads.net" in request.url:
+        if not request.url.endswith('/embed'):
+            request.url = request.url.split('?')[0] + '/embed'
+
     # --- الحل: استخدام client_id من الطلب كمعرف فريد للمهمة ---
     # هذا يضمن أن الواجهة الأمامية والخلفية يتفقان على نفس المعرف.
     task_id = request.client_id
@@ -397,7 +405,7 @@ async def stream_download(url: str, filename: str, source: str, format_id: str =
             """
             client = TelegramClient(StringSession(tg_settings["session_string"]), tg_settings["api_id"], tg_settings["api_hash"])
             try:
-                await client.start(phone=tg_settings.get("phone"))
+                await client.start(phone=tg_settings.get("phone")) # type: ignore
 
                 # --- تعديل: التعامل مع رابط t.me مباشر ---
                 message = await client.get_messages(url, ids=None)
@@ -587,7 +595,7 @@ async def get_telegram_dialogs():
     if not tg_settings.get("session_string"):
         raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام. يرجى تسجيل الدخول من الإعدادات أولاً.")
 
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string"))
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string")) # type: ignore
     
     try:
         # FastAPI يتعامل مع الدوال غير المتزامنة (async) بشكل ممتاز
@@ -616,7 +624,7 @@ async def get_telegram_files(dialog_id: int):
     if not tg_settings.get("session_string"):
         raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام.")
 
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string"))
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string")) # type: ignore
 
     async def file_generator():
         """مولّد غير متزامن يرسل كل ملف كسطر JSON."""
@@ -834,7 +842,7 @@ async def search_and_join_telegram_channel(request: UrlRequest):
     if not tg_settings.get("session_string"):
         raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام.")
 
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string"))
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string")) # type: ignore
     try:
         dialog_info = await manager.join_and_get_dialog(request.url)
         if dialog_info:
@@ -851,7 +859,7 @@ async def leave_telegram_channel(dialog_id: int):
     if not tg_settings.get("session_string"):
         raise HTTPException(status_code=401, detail="لم يتم تسجيل الدخول إلى تيليجرام.")
 
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string"))
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"], tg_settings.get("session_string")) # type: ignore
     try:
         message = await manager.leave_channel(dialog_id)
         return {"status": "success", "message": message}
@@ -928,7 +936,7 @@ async def telegram_send_code(request: TelegramLoginRequest):
     يبدأ عملية تسجيل الدخول بإرسال كود تحقق إلى رقم الهاتف المحدد.
     """
     tg_settings = SETTINGS.get("telegram", {})
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"])
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"]) # type: ignore
     try:
         # run_async_from_sync لا يعمل بشكل جيد مع دوال تسجيل الدخول
         # لذا سنستخدم المنطق غير المتزامن مباشرة
@@ -944,7 +952,7 @@ async def telegram_submit_code(request: TelegramCodeRequest):
     إذا نجح، سيحفظ جلسة المستخدم.
     """
     tg_settings = SETTINGS.get("telegram", {})
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"])
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"]) # type: ignore
     try:
         session_string = await manager.sign_in(
             phone=request.phone,
@@ -970,7 +978,7 @@ async def telegram_submit_password(request: TelegramPasswordRequest):
     tg_settings = SETTINGS.get("telegram", {})
     # يفترض أن يكون المدير قد تم تهيئته من الخطوة السابقة
     # هذا النهج مبسط، في تطبيق حقيقي قد تحتاج إلى إدارة حالة العميل بشكل أفضل
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"])
+    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"]) # type: ignore
     
     # إعادة الاتصال بنفس العميل الذي طلب الكود
     # هذا الجزء معقد بدون إدارة جلسات المستخدمين، سنعتمد على أن العميل لا يزال موجوداً
