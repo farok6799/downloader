@@ -154,6 +154,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- الحل الجذري والنهائي: دالة مركزية لتعديل الروابط ---
+# هذه الدالة تحاكي تماماً المنطق الموجود في البرنامج المكتبي.
+def prepare_url(url: str) -> str:
+    """ينظف ويعالج الرابط قبل إرساله إلى أي أداة تحليل."""
+    # 1. التعامل مع روابط Threads بإضافة /embed
+    if "threads.net" in url or "threads.com" in url:
+        if not url.endswith('/embed'):
+            url = url.split('?')[0].split('&')[0] + '/embed'
+    return url
+
 # --- مدير اتصالات WebSocket ---
 class ConnectionManager:
     def __init__(self):
@@ -216,7 +226,8 @@ async def fetch_details(request: UrlRequest):
     يستقبل هذا الـ endpoint رابطاً، ويحاول جلب اسم الملف وحجمه.
     يستخدم نفس الدوال الموجودة في برنامجك المكتبي.
     """
-    url = request.url
+    # --- الحل: استدعاء الدالة المركزية لتجهيز الرابط أولاً ---
+    url = prepare_url(request.url)
 
     # --- تحصين: رفض الروابط غير الصالحة (مثل blob:) مبكراً ---
     if not url.lower().startswith(('http://', 'https://')):
@@ -230,15 +241,6 @@ async def fetch_details(request: UrlRequest):
     if is_telegram_post:
         try:
             # --- الحل: استدعاء دالة جديدة لجلب تفاصيل المنشور الحقيقية ---
-            if "threads.net" in url or "threads.com" in url:
-                if not url.endswith('/embed'):
-                    url = url.split('?')[0].split('&')[0] + '/embed'
-            # --- تعديل: تمرير إعدادات yt-dlp لدعم ملفات تعريف الارتباط ---
-            # هذا يضمن أن yt-dlp يمكنه استخدام الكوكيز إذا لزم الأمر.
-            # --- الحل الجذري لمشكلة Threads: تعديل الرابط قبل أي عملية أخرى ---
-            if "threads.net" in url or "threads.com" in url:
-                if not url.endswith('/embed'):
-                    url = url.split('?')[0].split('&')[0] + '/embed'
             details = await get_telegram_post_details_async(url, tg_settings)
             # إرجاع التفاصيل الحقيقية للواجهة الأمامية
             return {**details, "source": "telethon"}
@@ -255,11 +257,6 @@ async def fetch_details(request: UrlRequest):
     ])
 
     if is_service_url:
-        # --- الحل الجذري لمشكلة Threads: تعديل الرابط قبل أي عملية أخرى ---
-        if "threads.net" in url or "threads.com" in url:
-            if not url.endswith('/embed'):
-                url = url.split('?')[0].split('&')[0] + '/embed'
-
         info, error = get_yt_dlp_info(url, SETTINGS)
         if error:
             raise HTTPException(status_code=400, detail=f"فشل جلب المعلومات من yt-dlp: {error}")
@@ -310,12 +307,8 @@ async def start_download_legacy(request: DownloadRequest):
         websocket_client_id = task_id.split('-')[0] + '-' + task_id.split('-')[1] + '-' + task_id.split('-')[2]
         asyncio.run_coroutine_threadsafe(manager.send_json(websocket_client_id, data), loop)
 
-    # --- الحل الجذري لمشكلة Threads: تعديل الرابط قبل أي عملية أخرى ---
-    # هذا يضمن أن yt-dlp يحصل على الرابط الصحيح من البداية.
-    if "threads.net" in request.url or "threads.com" in request.url:
-        if not request.url.endswith('/embed'):
-            request.url = request.url.split('?')[0].split('&')[0] + '/embed'
-
+    # --- الحل: استدعاء الدالة المركزية لتجهيز الرابط أولاً ---
+    url_to_download = prepare_url(request.url)
     worker = None
     if request.source == 'yt-dlp':
         if not YTDLP_AVAILABLE:
@@ -323,13 +316,11 @@ async def start_download_legacy(request: DownloadRequest):
         
         # --- الحل الجذري لمشكلة Threads: تعديل الرابط قبل أي عملية أخرى ---
         if "threads.net" in request.url or "threads.com" in request.url:
-            if not request.url.endswith('/embed'):
-                request.url = request.url.split('?')[0].split('&')[0] + '/embed'        
-        # تعديل YTDLRunner ليقبل دالة callback
-        # هذا يتطلب تعديل YTDLRunner في downloader_core.py
+            # لا حاجة لتعديل الرابط هنا لأنه تم تجهيزه بالفعل في url_to_download
+            pass
         worker = YTDLRunner(
             task_id=task_id,
-            url=request.url,
+            url=url_to_download,
             download_folder=SETTINGS['download_folder'],
             update_callback=progress_callback,
             format_id=request.format_id,
@@ -337,7 +328,7 @@ async def start_download_legacy(request: DownloadRequest):
         )
     elif request.source == 'direct':
         # جلب التفاصيل مرة أخرى للتأكد من صحتها قبل البدء
-        filename, total_size, error = get_download_details(request.url)
+        filename, total_size, error = get_download_details(url_to_download)
         if error:
             raise HTTPException(status_code=400, detail=f"فشل التحقق من الرابط المباشر: {error}")
 
@@ -345,7 +336,7 @@ async def start_download_legacy(request: DownloadRequest):
 
         worker = DownloadTask(
             task_id=task_id,
-            url=request.url,
+            url=url_to_download,
             filepath=filepath,
             total_size=total_size,
             # --- الحل: تمرير دالة الـ callback مباشرة ---
@@ -362,7 +353,7 @@ async def start_download_legacy(request: DownloadRequest):
     worker.start() # استخدام .start() بدلاً من .run() لتشغيله في خيط جديد
 
     # لا نحتاج إلى cleanup_task هنا لأن العامل سيتم تنظيفه عند الإلغاء أو الانتهاء
-    return {"status": "success", "message": f"بدأ تحميل الرابط: {request.url}"}
+    return {"status": "success", "message": f"بدأ تحميل الرابط: {url_to_download}"}
 
 async def get_telegram_post_details_async(url: str, tg_settings: dict) -> dict:
     """
