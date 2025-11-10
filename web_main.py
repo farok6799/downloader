@@ -337,12 +337,20 @@ async def start_download(request: DownloadRequest):
     # إذا كان المصدر yt-dlp، نحتاج إلى استخراج رابط التحميل الفعلي أولاً
     if request.source == 'yt-dlp':
         if not YTDLP_AVAILABLE:
-            raise HTTPException(status_code=500, detail="مكتبة yt-dlp غير مثبتة على الخادم.")
+            raise HTTPException(
+                status_code=500, 
+                detail="مكتبة yt-dlp غير مثبتة على الخادم.",
+                headers={'Access-Control-Allow-Origin': '*'} # --- إصلاح CORS ---
+            )
         
         # استخراج المعلومات للحصول على رابط التحميل المباشر
         info, error = get_yt_dlp_info(url_to_download, SETTINGS)
         if error:
-            raise HTTPException(status_code=500, detail=f"فشل yt-dlp في استخراج الرابط: {error}")
+            raise HTTPException(
+                status_code=500, 
+                detail=f"فشل yt-dlp في استخراج الرابط: {error}",
+                headers={'Access-Control-Allow-Origin': '*'} # --- إصلاح CORS ---
+            )
 
         # البحث عن أفضل رابط بناءً على طلب المستخدم
         target_format = None
@@ -358,7 +366,11 @@ async def start_download(request: DownloadRequest):
 
         final_url = target_format.get('url')
         if not final_url:
-            raise HTTPException(status_code=404, detail="لم يتمكن yt-dlp من العثور على رابط تحميل صالح.")
+            raise HTTPException(
+                status_code=404, 
+                detail="لم يتمكن yt-dlp من العثور على رابط تحميل صالح.",
+                headers={'Access-Control-Allow-Origin': '*'} # --- إصلاح CORS ---
+            )
 
     # الآن، لدينا final_url سواء كان من yt-dlp أو رابط مباشر
     # يمكننا الآن بثه إلى المستخدم
@@ -383,7 +395,11 @@ async def start_download(request: DownloadRequest):
         return StreamingResponse(response.iter_content(chunk_size=8192), headers=headers)
     
     except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"فشل الاتصال بالرابط المصدر: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"فشل الاتصال بالرابط المصدر: {e}",
+            headers={'Access-Control-Allow-Origin': '*'} # --- إصلاح CORS ---
+        )
 
 # --- 3. واجهة برمجة التطبيقات (API) لإلغاء التحميل ---
 @app.post("/api/v1/cancel/{client_id}", summary="إلغاء تحميل نشط")
