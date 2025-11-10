@@ -230,6 +230,9 @@ async def fetch_details(request: UrlRequest):
     if is_telegram_post:
         try:
             # --- الحل: استدعاء دالة جديدة لجلب تفاصيل المنشور الحقيقية ---
+            if "threads.net" in url or "threads.com" in url:
+                if not url.endswith('/embed'):
+                    url = url.split('?')[0].split('&')[0] + '/embed'
             # --- تعديل: تمرير إعدادات yt-dlp لدعم ملفات تعريف الارتباط ---
             # هذا يضمن أن yt-dlp يمكنه استخدام الكوكيز إذا لزم الأمر.
             # --- الحل الجذري لمشكلة Threads: تعديل الرابط قبل أي عملية أخرى ---
@@ -318,6 +321,10 @@ async def start_download_legacy(request: DownloadRequest):
         if not YTDLP_AVAILABLE:
             raise HTTPException(status_code=500, detail="مكتبة yt-dlp غير مثبتة على الخادم.")
         
+        # --- الحل الجذري لمشكلة Threads: تعديل الرابط قبل أي عملية أخرى ---
+        if "threads.net" in request.url or "threads.com" in request.url:
+            if not request.url.endswith('/embed'):
+                request.url = request.url.split('?')[0].split('&')[0] + '/embed'        
         # تعديل YTDLRunner ليقبل دالة callback
         # هذا يتطلب تعديل YTDLRunner في downloader_core.py
         worker = YTDLRunner(
