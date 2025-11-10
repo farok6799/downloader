@@ -749,6 +749,18 @@ class YTDLRunner(threading.Thread):
                     'postprocessor_args': {'Merger': ['-movflags', 'faststart']},
                     'continuedl': True,
                     }
+                
+                # --- NEW: Specific handling for Threads URLs ---
+                if "threads.net" in self.url or "threads.com" in self.url:
+                    # Ensure yt-dlp uses the Instagram extractor with appropriate options
+                    ydl_opts['extractor_args'] = {
+                        'instagram': {
+                            'lang': 'en', # Use English to avoid localization issues
+                        }
+                    }
+                    # Explicitly request a video format that can be merged to mp4
+                    ydl_opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best'
+
 
 
             # --- المنطق الأصلي للمواقع الأخرى ---
@@ -937,6 +949,12 @@ def get_yt_dlp_info(url, settings={}):
             info = ydl.extract_info(url, download=False)
             if info:
                 return info, None # Success on the first try
+            # --- NEW: Explicitly check for HTML extension for video sources ---
+            # If yt-dlp returns HTML, it means it failed to find a video.
+            # This prevents web_main.py from thinking it's a valid video file.
+            if info.get('ext') == 'html' and any(domain in url for domain in ['youtube.com', 'youtu.be', 'facebook.com', 'twitter.com', 'x.com', 'instagram.com', 'tiktok.com', 'threads.net', 't.me/s/']):
+                return None, "yt-dlp فشل في استخراج الفيديو. قد يكون الرابط غير صالح أو خاص."
+
     except yt_dlp.utils.DownloadError as e:
         # Check if the error is the specific "no video" error for Instagram.
         # If so, we'll fall through to the next attempt. Otherwise, it's a real error.
