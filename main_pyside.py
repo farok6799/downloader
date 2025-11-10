@@ -2015,12 +2015,6 @@ class MainWindow(QMainWindow):
         if not url:
             return
 
-        # --- FIX: Handle Threads URLs by appending /embed ---
-        # This makes yt-dlp recognize and process them correctly.
-        if "threads.net" in url or "threads.com" in url:
-            if not url.endswith('/embed'):
-                url = url.split('?')[0] + '/embed'
-
         # --- التعامل مع روابط Telethon الداخلية بشكل خاص ---
         if url.startswith("telethon://"):
             QMessageBox.warning(self, "خطأ", "لا يمكن تحميل هذا الرابط مباشرة. يرجى لصق رابط القناة الأصلي.")
@@ -2031,6 +2025,13 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "محتوى ممنوع", "ممنوع تنزيل هذا النوع من الملفات، اتقِ الله.")
             self.url_input.clear()
             return
+
+        # --- الحل الجذري لمشكلة Threads: تعديل الرابط قبل أي عملية أخرى ---
+        # هذا يضمن أن yt-dlp يحصل على الرابط الصحيح من البداية.
+        # يتم إزالة أي متغيرات إضافية في الرابط وإضافة /embed في النهاية.
+        if "threads.net" in url or "threads.com" in url:
+            if not url.endswith('/embed'):
+                url = url.split('?')[0].split('&')[0] + '/embed'
 
         is_service_url = any(domain in url for domain in self.service_domains) or "/embed" in url
 
