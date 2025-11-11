@@ -788,8 +788,8 @@
 
                 const streamUrl = new URL(`${API_BASE_URL}/api/v1/stream`);
                 // --- تعديل: استخدام رابط t.me مباشر بدلاً من الرابط الداخلي ---
-                streamUrl.searchParams.append('url', fileInfo.url.replace('telethon://', 'https://t.me/'));
-                stream_url.searchParams.append('filename', fileInfo.filename);
+                streamUrl.searchParams.append('url', fileInfo.url); // تمرير رابط telethon:// مباشرة
+                streamUrl.searchParams.append('filename', fileInfo.filename); // تم تصحيح الخطأ الإملائي هنا
                 streamUrl.searchParams.append('source', 'telethon');
                 streamUrl.searchParams.append('authorization', `Bearer ${sessionString}`); // إرسال الجلسة كمعامل
 
