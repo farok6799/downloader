@@ -1012,19 +1012,24 @@ async def telegram_submit_code(request: TelegramCodeRequest):
         SETTINGS["telegram"]["phone"] = request.phone
         save_settings()
         return {"status": "success", "message": "تم تسجيل الدخول بنجاح!"}
-    finally:
-        # --- تعديل: تنظيف العميل فقط إذا نجح تسجيل الدخول بدون كلمة مرور ---
-        # إذا كان يتطلب كلمة مرور، يجب أن يبقى العميل موجوداً.
-        if request.phone in login_clients:
-            if not isinstance(login_clients.get(request.phone), SessionPasswordNeededError):
-                login_clients.pop(request.phone, None)
 
     except SessionPasswordNeededError:
         # الحساب يتطلب كلمة مرور، أبلغ الواجهة بذلك
         # لا تقم بإزالة العميل من login_clients، سنحتاجه في الخطوة التالية
         raise HTTPException(status_code=401, detail="password_required")
     except Exception as e:
+        # في حالة حدوث أي خطأ آخر، قم بإزالته من قائمة العملاء النشطين
+        if request.phone in login_clients:
+            login_clients.pop(request.phone, None)
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # --- تعديل: تنظيف العميل فقط إذا نجح تسجيل الدخول بدون كلمة مرور ---
+        # إذا كان يتطلب كلمة مرور، يجب أن يبقى العميل موجوداً.
+        # هذا الكود يتم تشغيله الآن بعد معالجة الأخطاء.
+        client_data = login_clients.get(request.phone)
+        # لا تقم بالحذف إذا كان العميل لا يزال مطلوباً لخطوة كلمة المرور
+        if client_data and not isinstance(client_data, tuple):
+             login_clients.pop(request.phone, None)
 
 @app.post("/api/v1/telegram/login/submit-password", summary="إرسال كلمة مرور التحقق بخطوتين")
 async def telegram_submit_password(request: TelegramPasswordRequest):
