@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import contextlib
 import threading
 from fastapi import FastAPI, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.responses import FileResponse, StreamingResponse
@@ -14,7 +15,7 @@ import yt_dlp
 import time
 # --- استيراد المنطق الأساسي من ملفاتك الحالية ---
 # نفترض أن هذه الملفات موجودة في نفس المجلد
-from downloader_core import get_download_details, get_yt_dlp_info, YTDLRunner, YTDLP_AVAILABLE, DownloadTask, find_unique_filepath, ImageConverterWorker, VideoMergerWorker, FileRepairWorker, PIL_AVAILABLE, format_size, format_eta
+from downloader_core import get_download_details, get_yt_dlp_info, YTDLRunner, YTDLP_AVAILABLE, DownloadTask, find_unique_filepath, ImageConverterWorker, VideoMergerWorker, FileRepairWorker, PIL_AVAILABLE, format_size, format_eta, TELETHON_AVAILABLE
 from telegram_manager import TelegramManager
 
 # --- تحميل الإعدادات (بشكل مبسط) ---
@@ -193,11 +194,14 @@ class UrlRequest(BaseModel):
 class SettingsUpdate(BaseModel):
     download_folder: str | None = Field(None, description="المسار الجديد لمجلد التحميلات.")
     max_concurrent_downloads: int | None = Field(None, description="الحد الأقصى للتحميلات المتزامنة.")
+    # --- جديد: إضافة حقل تيليجرام لتحديث جلسة الاتصال ---
+    telegram: dict | None = Field(None, description="إعدادات تيليجرام، مثل session_string.")
 
 class FileCompletionRequest(BaseModel):
     filepath: str
     url: str
 
+# --- جديد: نماذج بيانات لعملية تسجيل الدخول إلى تيليجرام ---
 class TelegramLoginRequest(BaseModel):
     phone: str
 
@@ -208,6 +212,11 @@ class TelegramCodeRequest(BaseModel):
 
 class TelegramPasswordRequest(BaseModel):
     password: str
+
+# --- جديد: قاموس مؤقت لتخزين عملاء تيليجرام أثناء عملية تسجيل الدخول ---
+# المفتاح هو رقم الهاتف، والقيمة هي كائن العميل (client object)
+# هذا ضروري للتعامل مع كلمة مرور التحقق بخطوتين
+login_clients = {}
 
 # --- 1. واجهة برمجة التطبيقات (API) لجلب تفاصيل الرابط ---
 @app.post("/api/v1/details", summary="جلب تفاصيل ملف من رابط")
@@ -767,12 +776,18 @@ async def get_settings():
 async def update_settings(new_settings: SettingsUpdate):
     """يستقبل إعدادات جديدة ويقوم بتحديثها وحفظها."""
     updated = False
+    global SETTINGS # --- تأكيد استخدام المتغير العام ---
+
     if new_settings.download_folder is not None:
         SETTINGS["download_folder"] = new_settings.download_folder
         os.makedirs(new_settings.download_folder, exist_ok=True)
         updated = True
     if new_settings.max_concurrent_downloads is not None:
         SETTINGS["max_concurrent_downloads"] = new_settings.max_concurrent_downloads
+        updated = True
+    # --- جديد: التعامل مع تحديثات إعدادات تيليجرام ---
+    if new_settings.telegram is not None:
+        SETTINGS["telegram"] = {**SETTINGS.get("telegram", {}), **new_settings.telegram}
         updated = True
     
     if updated:
@@ -922,20 +937,43 @@ async def combine_parts(file: UploadFile = File(...)):
 
 # --- 7. واجهات برمجة التطبيقات (API) لتسجيل الدخول إلى تيليجرام ---
 
+# --- تعديل جذري: استخدام context manager لإدارة اتصال العميل ---
+@contextlib.asynccontextmanager
+async def get_temp_telegram_client(phone: str):
+    """
+    Context manager to handle temporary client creation and disconnection for login.
+    """
+    from telethon.sync import TelegramClient
+    from telethon.sessions import StringSession
+
+    client = TelegramClient(StringSession(), int(SETTINGS["telegram"]["api_id"]), SETTINGS["telegram"]["api_hash"])
+    try:
+        await client.connect()
+        login_clients[phone] = client # Store client for the next step
+        yield client
+    finally:
+        if phone in login_clients:
+            del login_clients[phone] # Clean up
+        if client.is_connected():
+            await client.disconnect()
+
 @app.post("/api/v1/telegram/login/send-code", summary="إرسال كود التحقق إلى رقم هاتف")
 async def telegram_send_code(request: TelegramLoginRequest):
     """
     يبدأ عملية تسجيل الدخول بإرسال كود تحقق إلى رقم الهاتف المحدد.
     """
-    tg_settings = SETTINGS.get("telegram", {})
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"])
-    try:
-        # run_async_from_sync لا يعمل بشكل جيد مع دوال تسجيل الدخول
-        # لذا سنستخدم المنطق غير المتزامن مباشرة
-        phone_code_hash = await manager.send_code_request(request.phone)
+    if not TELETHON_AVAILABLE:
+        raise HTTPException(status_code=501, detail="مكتبة Telethon غير مثبتة على الخادم.")
+
+    # --- تعديل: استخدام قيم API ID و HASH من الإعدادات ---
+    # هذا يفترض أن الواجهة الأمامية قد قامت بحفظها مسبقاً، أو أنها موجودة في settings.json
+    if "telegram" not in SETTINGS or "api_id" not in SETTINGS["telegram"] or "api_hash" not in SETTINGS["telegram"]:
+         SETTINGS["telegram"] = {"api_id": "20961519", "api_hash": "0d57a9b5a975c6770f0797b9ea75ebe6"}
+
+    async with get_temp_telegram_client(request.phone) as client:
+        result = await client.send_code_request(request.phone)
+        phone_code_hash = result.phone_code_hash
         return {"status": "success", "phone_code_hash": phone_code_hash}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/telegram/login/submit-code", summary="إرسال كود التحقق وكلمة المرور")
 async def telegram_submit_code(request: TelegramCodeRequest):
@@ -943,23 +981,27 @@ async def telegram_submit_code(request: TelegramCodeRequest):
     يتحقق من الكود المرسل. إذا كان الحساب يتطلب كلمة مرور، سيعيد خطأً بذلك.
     إذا نجح، سيحفظ جلسة المستخدم.
     """
-    tg_settings = SETTINGS.get("telegram", {})
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"])
+    from telethon.errors.rpcerrorlist import SessionPasswordNeededError
+
+    client = login_clients.get(request.phone)
+    if not client or not client.is_connected():
+        raise HTTPException(status_code=400, detail="انتهت صلاحية جلسة تسجيل الدخول. يرجى البدء من جديد بإرسال الرمز.")
+
     try:
-        session_string = await manager.sign_in(
-            phone=request.phone,
-            phone_code_hash=request.phone_code_hash,
-            code=request.code
-        )
-        # إذا نجح تسجيل الدخول، قم بتحديث وحفظ الإعدادات
+        await client.sign_in(phone=request.phone, code=request.code, phone_code_hash=request.phone_code_hash)
+        
+        # إذا نجح تسجيل الدخول بدون كلمة مرور
+        session_string = client.session.save()
         SETTINGS["telegram"]["session_string"] = session_string
         SETTINGS["telegram"]["phone"] = request.phone
         save_settings()
         return {"status": "success", "message": "تم تسجيل الدخول بنجاح!"}
+
+    except SessionPasswordNeededError:
+        # الحساب يتطلب كلمة مرور، أبلغ الواجهة بذلك
+        # لا تقم بإزالة العميل من login_clients، سنحتاجه في الخطوة التالية
+        raise HTTPException(status_code=401, detail="password_required")
     except Exception as e:
-        # التحقق مما إذا كان الخطأ بسبب الحاجة إلى كلمة مرور
-        if "password" in str(e).lower():
-            raise HTTPException(status_code=401, detail="password_required")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/telegram/login/submit-password", summary="إرسال كلمة مرور التحقق بخطوتين")
@@ -967,23 +1009,30 @@ async def telegram_submit_password(request: TelegramPasswordRequest):
     """
     يتحقق من كلمة مرور التحقق بخطوتين ويُكمل عملية تسجيل الدخول.
     """
-    tg_settings = SETTINGS.get("telegram", {})
-    # يفترض أن يكون المدير قد تم تهيئته من الخطوة السابقة
-    # هذا النهج مبسط، في تطبيق حقيقي قد تحتاج إلى إدارة حالة العميل بشكل أفضل
-    manager = TelegramManager(int(tg_settings["api_id"]), tg_settings["api_hash"])
+    # --- تعديل: البحث عن العميل باستخدام أي مفتاح متاح في القاموس ---
+    # هذا يجعل الكود أكثر مرونة إذا كان هناك عميل واحد فقط قيد تسجيل الدخول
+    if not login_clients:
+        raise HTTPException(status_code=400, detail="انتهت صلاحية جلسة تسجيل الدخول. يرجى البدء من جديد.")
     
-    # إعادة الاتصال بنفس العميل الذي طلب الكود
-    # هذا الجزء معقد بدون إدارة جلسات المستخدمين، سنعتمد على أن العميل لا يزال موجوداً
-    if not manager.is_connected_for_login():
-         raise HTTPException(status_code=400, detail="انتهت صلاحية جلسة تسجيل الدخول. يرجى البدء من جديد.")
+    # الحصول على أول (ويفترض الوحيد) عميل في القاموس
+    client = next(iter(login_clients.values()))
 
     try:
-        session_string = await manager.check_password(request.password)
+        await client.sign_in(password=request.password)
+        
+        session_string = client.session.save()
         SETTINGS["telegram"]["session_string"] = session_string
         save_settings()
         return {"status": "success", "message": "تم تسجيل الدخول بنجاح!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        # --- هام: تنظيف العميل بعد انتهاء العملية (سواء نجحت أو فشلت) ---
+        phone = next(iter(login_clients.keys()))
+        if phone in login_clients:
+            del login_clients[phone]
+        if client.is_connected():
+            await client.disconnect()
 
 # --- جديد: واجهة برمجية للتحقق من وجود ffmpeg ---
 @app.get("/api/v1/tools/check-ffmpeg", summary="التحقق من تثبيت ffmpeg")
