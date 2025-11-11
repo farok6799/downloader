@@ -414,8 +414,16 @@ async def stream_download(url: str, filename: str, source: str, format_id: str =
             manager = await get_telegram_manager(authorization)
             try:
                 async with await manager.get_client() as client:
-                    message = await client.get_messages(url, ids=None)
-
+                    # --- تعديل جذري: تحليل رابط telethon:// الداخلي ---
+                    # الرابط القادم من الواجهة الأمامية هو بصيغة "telethon://<channel_id>/<message_id>"
+                    # يجب تحليله للحصول على معرف القناة والرسالة.
+                    if not url.startswith("telethon://"):
+                        raise ValueError("رابط تيليجرام غير صالح للبث المباشر.")
+                    
+                    parts = url.replace("telethon://", "").split('/')
+                    channel_ref, msg_id = parts[0], int(parts[1])
+                    
+                    message = await client.get_messages(channel_ref, ids=msg_id)
                 if not message or not message.media:
                     raise Exception("لم يتم العثور على وسائط في الرسالة.")
 
