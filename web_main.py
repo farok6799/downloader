@@ -217,6 +217,10 @@ class TelegramPasswordRequest(BaseModel):
 # المفتاح هو رقم الهاتف، والقيمة هي كائن العميل (client object)
 # هذا ضروري للتعامل مع كلمة مرور التحقق بخطوتين
 login_clients = {}
+# --- جديد: مؤقت لتنظيف الجلسات غير المكتملة ---
+# سيقوم هذا المؤقت بحذف أي عميل تسجيل دخول لم يكتمل بعد 10 دقائق
+LOGIN_SESSION_TIMEOUT = 600 # 10 دقائق
+
 
 # --- 1. واجهة برمجة التطبيقات (API) لجلب تفاصيل الرابط ---
 @app.post("/api/v1/details", summary="جلب تفاصيل ملف من رابط")
@@ -937,31 +941,31 @@ async def combine_parts(file: UploadFile = File(...)):
 
 # --- 7. واجهات برمجة التطبيقات (API) لتسجيل الدخول إلى تيليجرام ---
 
-# --- تعديل جذري: استخدام context manager لإدارة اتصال العميل ---
-@contextlib.asynccontextmanager
-async def get_temp_telegram_client(phone: str):
+# --- جديد: دالة لتنظيف الجلسات القديمة ---
+async def cleanup_old_login_sessions():
     """
-    Context manager to handle temporary client creation and disconnection for login.
+    Iterates through login_clients and disconnects/removes any that are older than the timeout.
     """
-    from telethon.sync import TelegramClient
-    from telethon.sessions import StringSession
+    now = time.time()
+    expired_clients = []
+    for phone, (client, creation_time) in login_clients.items():
+        if now - creation_time > LOGIN_SESSION_TIMEOUT:
+            expired_clients.append(phone)
 
-    client = TelegramClient(StringSession(), int(SETTINGS["telegram"]["api_id"]), SETTINGS["telegram"]["api_hash"])
-    try:
-        await client.connect()
-        login_clients[phone] = client # Store client for the next step
-        yield client
-    finally:
-        if phone in login_clients:
-            del login_clients[phone] # Clean up
-        if client.is_connected():
+    for phone in expired_clients:
+        client, _ = login_clients.pop(phone, (None, None))
+        if client and client.is_connected():
             await client.disconnect()
+            print(f"Cleaned up expired Telegram login session for {phone}")
 
 @app.post("/api/v1/telegram/login/send-code", summary="إرسال كود التحقق إلى رقم هاتف")
 async def telegram_send_code(request: TelegramLoginRequest):
     """
     يبدأ عملية تسجيل الدخول بإرسال كود تحقق إلى رقم الهاتف المحدد.
     """
+    # --- جديد: تنظيف الجلسات القديمة قبل إنشاء واحدة جديدة ---
+    await cleanup_old_login_sessions()
+
     if not TELETHON_AVAILABLE:
         raise HTTPException(status_code=501, detail="مكتبة Telethon غير مثبتة على الخادم.")
 
@@ -970,10 +974,22 @@ async def telegram_send_code(request: TelegramLoginRequest):
     if "telegram" not in SETTINGS or "api_id" not in SETTINGS["telegram"] or "api_hash" not in SETTINGS["telegram"]:
          SETTINGS["telegram"] = {"api_id": "20961519", "api_hash": "0d57a9b5a975c6770f0797b9ea75ebe6"}
 
-    async with get_temp_telegram_client(request.phone) as client:
+    # --- تعديل جذري: إزالة context manager وإنشاء العميل مباشرة ---
+    # هذا يضمن بقاء العميل في الذاكرة للخطوة التالية.
+    from telethon.sync import TelegramClient
+    from telethon.sessions import StringSession
+
+    client = TelegramClient(StringSession(), int(SETTINGS["telegram"]["api_id"]), SETTINGS["telegram"]["api_hash"])
+    try:
+        await client.connect()
         result = await client.send_code_request(request.phone)
+        # --- جديد: تخزين العميل مع وقت إنشائه ---
+        login_clients[request.phone] = (client, time.time())
         phone_code_hash = result.phone_code_hash
         return {"status": "success", "phone_code_hash": phone_code_hash}
+    except Exception as e:
+        if client.is_connected(): await client.disconnect()
+        raise HTTPException(status_code=500, detail=f"فشل إرسال الرمز: {e}")
 
 @app.post("/api/v1/telegram/login/submit-code", summary="إرسال كود التحقق وكلمة المرور")
 async def telegram_submit_code(request: TelegramCodeRequest):
@@ -983,7 +999,7 @@ async def telegram_submit_code(request: TelegramCodeRequest):
     """
     from telethon.errors.rpcerrorlist import SessionPasswordNeededError
 
-    client = login_clients.get(request.phone)
+    client, _ = login_clients.get(request.phone, (None, None))
     if not client or not client.is_connected():
         raise HTTPException(status_code=400, detail="انتهت صلاحية جلسة تسجيل الدخول. يرجى البدء من جديد بإرسال الرمز.")
 
@@ -996,6 +1012,12 @@ async def telegram_submit_code(request: TelegramCodeRequest):
         SETTINGS["telegram"]["phone"] = request.phone
         save_settings()
         return {"status": "success", "message": "تم تسجيل الدخول بنجاح!"}
+    finally:
+        # --- تعديل: تنظيف العميل فقط إذا نجح تسجيل الدخول بدون كلمة مرور ---
+        # إذا كان يتطلب كلمة مرور، يجب أن يبقى العميل موجوداً.
+        if request.phone in login_clients:
+            if not isinstance(login_clients.get(request.phone), SessionPasswordNeededError):
+                login_clients.pop(request.phone, None)
 
     except SessionPasswordNeededError:
         # الحساب يتطلب كلمة مرور، أبلغ الواجهة بذلك
@@ -1014,9 +1036,9 @@ async def telegram_submit_password(request: TelegramPasswordRequest):
     if not login_clients:
         raise HTTPException(status_code=400, detail="انتهت صلاحية جلسة تسجيل الدخول. يرجى البدء من جديد.")
     
-    # الحصول على أول (ويفترض الوحيد) عميل في القاموس
-    client = next(iter(login_clients.values()))
-
+    # --- تعديل: الحصول على العميل باستخدام رقم الهاتف من الخطوة السابقة ---
+    phone = next(iter(login_clients.keys())) # Get the phone number from the dictionary
+    client, _ = login_clients.get(phone, (None, None))
     try:
         await client.sign_in(password=request.password)
         
@@ -1028,8 +1050,7 @@ async def telegram_submit_password(request: TelegramPasswordRequest):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         # --- هام: تنظيف العميل بعد انتهاء العملية (سواء نجحت أو فشلت) ---
-        phone = next(iter(login_clients.keys()))
-        if phone in login_clients:
+        if phone and phone in login_clients:
             del login_clients[phone]
         if client.is_connected():
             await client.disconnect()
