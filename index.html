@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mostafa Web Downloader</title>
+    <title>Mostafa Internet Downloader</title>
     <!-- Bootstrap CSS for styling -->
     <!-- تم إزالة Bootstrap CSS للاعتماد على التصميم المخصص -->
     <style>
@@ -113,7 +113,7 @@
 </head>
 <body>
     <div class="container mt-4">
-        <h1 class="text-center mb-4">🚀 Mostafa Web Downloader</h1>
+        <h1 class="text-center mb-4">🚀 Mostafa Internet Downloader</h1>
 
         <!-- Nav Tabs -->
         <div class="tab-buttons">
@@ -272,14 +272,14 @@
                     <div id="telegram-login-status" style="margin-bottom: 1rem;"></div>
                     <!-- قسم تسجيل الدخول (يظهر فقط إذا لم يتم تسجيل الدخول) -->
                     <div id="telegram-login-section">
-                        <div id="tg-login-step-phone" style="margin-bottom: 1rem;">
+                        <div id="tg-login-step-phone" style="margin-bottom: 1rem;" data-step="phone">
                             <label for="tg-phone-input">رقم الهاتف (بالصيغة الدولية):</label>
                             <div class="input-group">
                                 <input type="text" id="tg-phone-input" placeholder="+201234567890">
                                 <button id="tg-send-code-btn">إرسال الرمز</button>
                             </div>
                         </div>
-                        <div id="tg-login-step-code" style="display: none; margin-bottom: 1rem;">
+                        <div id="tg-login-step-code" style="display: none; margin-bottom: 1rem;" data-step="code">
                             <label for="tg-code-input">رمز التحقق:</label>
                             <input type="text" id="tg-code-input" placeholder="أدخل الرمز الذي وصلك">
                         </div>
@@ -941,12 +941,12 @@
                     const result = await response.json();
                     if (!response.ok) {
                         if (response.status === 401 && result.detail === 'password_required') {
-                            telegramLoginStatus.textContent = 'مطلوب كلمة مرور التحقق بخطوتين.';
+                            telegramLoginStatus.textContent = 'تم التحقق من الرمز. الآن أدخل كلمة مرور التحقق بخطوتين.';
                             document.getElementById('tg-login-step-code').style.display = 'none';
                             document.getElementById('tg-login-step-password').style.display = 'block';
                             document.getElementById('tg-submit-btn').dataset.state = 'password';
                         } else {
-                            throw new Error(result.detail || 'فشل التحقق');
+                            throw new Error(result.detail || 'فشل التحقق. الرمز قد يكون غير صحيح.');
                         }
                     } else {
                         telegramLoginStatus.textContent = '✅ تم تسجيل الدخول بنجاح!';
@@ -955,7 +955,7 @@
                     }
                 } catch (error) {
                     telegramLoginStatus.textContent = `❌ خطأ: ${error.message}`;
-                    telegramLoginStatus.style.color = '#da373c';
+                    telegramLoginStatus.style.color = 'orange'; // Use orange for non-critical errors
                 }
             };
 
@@ -964,13 +964,14 @@
                 // We just clear the session string from settings.
                 if (!confirm('هل أنت متأكد أنك تريد تسجيل الخروج؟')) return;
                 settingsStatus.textContent = 'جاري تسجيل الخروج...';
-                const body = { session_string: null }; // Send null to clear it
+                const body = { telegram: { session_string: null } }; // Send null to clear it
                 const response = await fetch(`${API_BASE_URL}/api/v1/settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
                 if (response.ok) {
                     settingsStatus.textContent = 'تم تسجيل الخروج.';
                     fetchAndShowSettings(); // Refresh UI
                 } else {
-                    settingsStatus.textContent = '❌ فشل تسجيل الخروج.';
+                    const err = await response.json();
+                    settingsStatus.textContent = `❌ فشل تسجيل الخروج: ${err.detail || 'خطأ غير معروف'}`;
                 }
             };
 
