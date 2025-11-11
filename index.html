@@ -708,6 +708,18 @@
             };
 
             const fetchTelegramFiles = async (dialogId) => {
+                // --- تعديل جذري: تعريف ترويسة المصادقة داخل هذه الدالة ---
+                // هذا هو سبب الخطأ "authHeaders is not defined".
+                const sessionString = localStorage.getItem('telegram_session_string');
+                if (!sessionString) {
+                    filesList.innerHTML = '<p style="text-align: center; color: #e74c3c;">خطأ: لم يتم تسجيل الدخول إلى تيليجرام.</p>';
+                    return;
+                }
+
+                const authHeaders = {
+                    'Authorization': `Bearer ${sessionString}`
+                };
+
                 // Manage active state
                 document.querySelectorAll('#telegram-dialogs-list .list-group-item').forEach(el => {
                     el.style.backgroundColor = '';
