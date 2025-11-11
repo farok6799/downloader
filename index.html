@@ -660,8 +660,21 @@
             const fetchTelegramDialogs = async () => {
                 telegramStatus.textContent = 'جاري جلب القنوات...';
                 dialogsList.innerHTML = '';
+
+                // --- تعديل جذري: التحقق من الجلسة وإعداد الترويسة أولاً ---
+                const sessionString = localStorage.getItem('telegram_session_string');
+                if (!sessionString) {
+                    telegramStatus.textContent = 'خطأ: لم يتم توفير جلسة اتصال تيليجرام.';
+                    return;
+                }
+
+                const authHeaders = {
+                    'Authorization': `Bearer ${sessionString}`
+                };
+
                 try {
-                    const response = await fetch(`${API_BASE_URL}/api/v1/telegram/dialogs`);
+                    // --- تعديل: إضافة الترويسة إلى الطلب ---
+                    const response = await fetch(`${API_BASE_URL}/api/v1/telegram/dialogs`, { headers: authHeaders });
                     if (!response.ok) {
                         const error = await response.json();
                         throw new Error(error.detail || 'فشل جلب القنوات');
@@ -690,6 +703,7 @@
                     telegramStatus.textContent = `تم العثور على ${data.dialogs.length} قناة/مجموعة.`;
                 } catch (error) {
                     telegramStatus.textContent = `خطأ: ${error.message}`;
+                    return;
                 }
             };
 
