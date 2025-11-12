@@ -779,22 +779,40 @@
                 const fileInfo = JSON.parse(event.target.dataset.fileInfo);
                 if (!fileInfo) return;
 
-                // --- تعديل جذري: استخدام البث المباشر بدلاً من WebSocket ---
+                // --- تعديل جذري: استخدام التحميل في الخلفية عبر WebSocket بدلاً من البث المباشر ---
                 const sessionString = localStorage.getItem('telegram_session_string');
                 if (!sessionString) {
                     alert('يرجى تسجيل الدخول إلى تيليجرام أولاً.');
                     return;
                 }
 
-                const streamUrl = new URL(`${API_BASE_URL}/api/v1/stream`);
-                // --- تعديل: استخدام رابط t.me مباشر بدلاً من الرابط الداخلي ---
-                streamUrl.searchParams.append('url', fileInfo.url); // تمرير رابط telethon:// مباشرة
-                streamUrl.searchParams.append('filename', fileInfo.filename); // تم تصحيح الخطأ الإملائي هنا
-                streamUrl.searchParams.append('source', 'telethon');
-                streamUrl.searchParams.append('authorization', `Bearer ${sessionString}`); // إرسال الجلسة كمعامل
+                // 1. إنشاء عنصر التحميل في الواجهة فوراً
+                const taskId = `${appState.clientId}-${Date.now()}`;
+                createDownloadItem(taskId, fileInfo.filename);
 
-                // فتح الرابط الجديد لبدء التحميل في المتصفح
-                window.location.href = streamUrl.href;
+                // 2. إرسال الطلب إلى الواجهة الخلفية لبدء التحميل
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/v1/telegram/download`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            client_id: taskId,
+                            file_info: fileInfo,
+                            session_string: sessionString // إرسال الجلسة مع الطلب
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'فشل بدء تحميل ملف تيليجرام');
+                    }
+
+                    // 3. الانتقال إلى تبويب التحميلات ليرى المستخدم التقدم
+                    document.querySelector('.tab-button[onclick*="downloader-panel"]').click();
+
+                } catch (error) {
+                    updateDownloadItemError(taskId, `خطأ: ${error.message}`);
+                }
             };
 
             const handleFileRepair = async () => {

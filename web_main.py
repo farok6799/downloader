@@ -563,6 +563,7 @@ async def resume_download(client_id: str):
 class TelegramDownloadRequest(BaseModel):
     client_id: str      # معرّف المهمة الفريد من الواجهة
     file_info: dict     # قاموس يحتوي على كل معلومات الملف من تيليجرام
+    session_string: str # --- جديد: جلسة الاتصال الخاصة بالمستخدم ---
 
 @app.post("/api/v1/telegram/download", summary="بدء تحميل ملف من تيليجرام")
 async def start_telegram_download(request: TelegramDownloadRequest):
@@ -579,28 +580,27 @@ async def start_telegram_download(request: TelegramDownloadRequest):
         websocket_client_id = '-'.join(task_id.split('-', 3)[:3])
         asyncio.run_coroutine_threadsafe(manager.send_json(websocket_client_id, data), loop)
 
-    # --- تعديل: لا يمكننا استخدام Depends هنا، لذا سنقرأ الترويسة يدوياً ---
-    # هذا الجزء معقد لأننا في نقطة نهاية مختلفة. الحل الأبسط هو أن
-    # الواجهة الأمامية يجب أن ترسل الـ session_string في جسم الطلب.
-    # سأقوم بتعديل الواجهة الأمامية والخلفية لعمل ذلك.
-    raise HTTPException(status_code=501, detail="This endpoint is deprecated. Use direct streaming.")
+    # --- تعديل جذري: استخدام العامل الخلفي بدلاً من البث المباشر ---
+    tg_settings = SETTINGS.get("telegram", {})
 
     # التأكد من أن اسم الملف آمن للاستخدام في نظام الملفات
     safe_filename = re.sub(r'[\\/*?:"<>|]', "", file_info.get('filename', f"telegram_file_{task_id}"))
-    filepath = find_unique_filepath(SETTINGS['download_folder'], safe_filename)
+    # --- تعديل: استخدام find_unique_filepath لضمان عدم الكتابة فوق الملفات ---
+    unique_filepath = find_unique_filepath(SETTINGS['download_folder'], safe_filename)
 
     worker = TelethonDownloadWorker(
         task_id=task_id,
         telethon_url=file_info['url'],
         download_folder=SETTINGS['download_folder'],
-        filename=os.path.basename(filepath),
-        api_id=int(tg_settings["api_id"]),
-        api_hash=tg_settings["api_hash"],
-        session_string=tg_settings.get("session_string"),
+        filename=os.path.basename(unique_filepath),
+        api_id=int(tg_settings.get("api_id", "20961519")),
+        api_hash=tg_settings.get("api_hash", "0d57a9b5a975c6770f0797b9ea75ebe6"),
+        session_string=request.session_string,
         update_callback=progress_callback, # تمرير الـ callback مباشرة
         environment='web'  # تحديد البيئة كـ "web"
     )
 
+    worker.start() # بدء التحميل في خيط جديد
     active_workers[task_id] = worker
     return {"status": "success", "message": f"بدأ تحميل ملف تيليجرام: {safe_filename}"}
 
