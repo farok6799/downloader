@@ -848,16 +848,20 @@ async def download_from_library(filepath: str):
     """
     يستقبل مسار ملف موجود على الخادم ويقوم ببثه للمتصفح للتحميل.
     """
-    # --- تعديل جذري: توحيد صيغة المسارات قبل المقارنة ---
-    # هذا يحل مشكلة التعارض بين الشرطة المائلة (/) والشرطة المائلة العكسية (\)
-    # التي تحدث عند إرسال المسار من الخادم إلى المتصفح ثم إعادته.
     if not os.path.exists(filepath) or not os.path.isfile(filepath):
         raise HTTPException(status_code=404, detail="الملف المطلوب غير موجود على الخادم.")
 
-    safe_filepath = os.path.normpath(filepath)
-    safe_download_folder = os.path.normpath(os.path.abspath(SETTINGS.get("download_folder", "downloads")))
+    # --- الحل الجذري لمشكلة "الوصول ممنوع" ---
+    # 1. نحصل على المسار الحقيقي والمطلق للملف المطلوب ومجلد التحميلات.
+    #    os.path.realpath يتأكد من حل أي روابط رمزية (symbolic links).
+    #    os.path.abspath يتأكد من أن المسار مطلق.
+    real_filepath = os.path.abspath(os.path.realpath(filepath))
+    real_download_folder = os.path.abspath(os.path.realpath(SETTINGS.get("download_folder", "downloads")))
 
-    if not safe_filepath.startswith(safe_download_folder):
+    # 2. نتحقق مما إذا كان المسار الحقيقي للملف يبدأ بالمسار الحقيقي لمجلد التحميلات.
+    #    هذه هي الطريقة الأكثر أمانًا وموثوقية لمنع الوصول إلى ملفات خارج المجلد المسموح به،
+    #    حتى مع وجود مسارات معقدة مثل "../" أو اختلاف في صيغة الشرطة المائلة.
+    if not real_filepath.startswith(real_download_folder):
         raise HTTPException(status_code=403, detail="الوصول إلى هذا المسار ممنوع.")
 
     return FileResponse(path=filepath, media_type='application/octet-stream', filename=os.path.basename(filepath))
