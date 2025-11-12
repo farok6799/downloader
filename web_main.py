@@ -848,12 +848,12 @@ async def download_from_library(filepath: str):
     """
     يستقبل مسار ملف موجود على الخادم ويقوم ببثه للمتصفح للتحميل.
     """
-    if not os.path.exists(filepath) or not os.path.isfile(filepath):
-        raise HTTPException(status_code=404, detail="الملف المطلوب غير موجود على الخادم.")
-    
     # --- تعديل جذري: توحيد صيغة المسارات قبل المقارنة ---
     # هذا يحل مشكلة التعارض بين الشرطة المائلة (/) والشرطة المائلة العكسية (\)
     # التي تحدث عند إرسال المسار من الخادم إلى المتصفح ثم إعادته.
+    if not os.path.exists(filepath) or not os.path.isfile(filepath):
+        raise HTTPException(status_code=404, detail="الملف المطلوب غير موجود على الخادم.")
+
     safe_filepath = os.path.normpath(filepath)
     safe_download_folder = os.path.normpath(os.path.abspath(SETTINGS.get("download_folder", "downloads")))
 
