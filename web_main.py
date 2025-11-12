@@ -123,7 +123,12 @@ class TelethonDownloadWorker(threading.Thread):
         try:
             loop.run_until_complete(do_download())
             if not self.stop_flag.is_set():
-                self._send_update({"task_id": self.task_id, "type": "done", "text": f"✅ تم تحميل {self.filename} بنجاح"})
+                self._send_update({
+                    "task_id": self.task_id, 
+                    "type": "done", 
+                    "text": f"✅ تم تحميل {self.filename} بنجاح. جاري النقل للمتصفح...",
+                    "filepath": output_path # --- جديد: إضافة مسار الملف المكتمل ---
+                })
         except Exception as e:
             if not self.stop_flag.is_set():
                 self._send_update({"task_id": self.task_id, "type": "error", "text": f"❌ خطأ أثناء تحميل Telethon: {e}"})
@@ -836,6 +841,21 @@ async def browse_library():
             except OSError:
                 continue
     return {"files": files_list}
+
+# --- جديد: واجهة برمجية لتحميل ملف من المكتبة ---
+@app.get("/api/v1/library/download", summary="تحميل ملف من مكتبة الخادم")
+async def download_from_library(filepath: str):
+    """
+    يستقبل مسار ملف موجود على الخادم ويقوم ببثه للمتصفح للتحميل.
+    """
+    if not os.path.exists(filepath) or not os.path.isfile(filepath):
+        raise HTTPException(status_code=404, detail="الملف المطلوب غير موجود على الخادم.")
+    
+    # التأكد من أن المسار داخل مجلد التحميلات لمنع الوصول لملفات أخرى
+    if not filepath.startswith(os.path.abspath(SETTINGS.get("download_folder", "downloads"))):
+        raise HTTPException(status_code=403, detail="الوصول إلى هذا المسار ممنوع.")
+
+    return FileResponse(path=filepath, media_type='application/octet-stream', filename=os.path.basename(filepath))
 
 # --- 6. واجهات برمجة إضافية لمدير تيليجرام والأدوات ---
 

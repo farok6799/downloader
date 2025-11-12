@@ -512,6 +512,12 @@
                             pauseBtn.style.display = 'none';
                             resumeBtn.style.display = 'none';
                             item.querySelector('.cancel-btn').style.display = 'none';
+                            // --- جديد: بدء التحميل إلى المتصفح عند اكتمال التحميل على الخادم ---
+                            if (data.filepath) {
+                                const downloadUrl = new URL(`${API_BASE_URL}/api/v1/library/download`);
+                                downloadUrl.searchParams.append('filepath', data.filepath);
+                                window.location.href = downloadUrl.href;
+                            }
                             break;
                         case 'error':
                             statusText.textContent = data.text;
