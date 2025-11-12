@@ -244,11 +244,27 @@ async def fetch_details(request: UrlRequest):
     # التحقق إذا كان الرابط لمنشور مباشر في تيليجرام (وليس قناة عامة /s/)
     # وإذا كانت إعدادات تيليجرام موجودة.
     tg_settings = SETTINGS.get("telegram", {})
+    is_direct_tg_post = 't.me/' in url and '/s/' not in url and tg_settings.get("session_string")
+
+    # --- جديد: التعامل مع روابط منشورات تيليجرام المباشرة أولاً ---
+    if is_direct_tg_post:
+        try:
+            # إنشاء مدير تيليجرام باستخدام جلسة الاتصال من الإعدادات
+            manager = TelegramManager(
+                int(tg_settings.get("api_id", "20961519")),
+                tg_settings.get("api_hash", "0d57a9b5a975c6770f0797b9ea75ebe6"),
+                tg_settings.get("session_string")
+            )
+            details = await get_telegram_post_details_async(url, manager)
+            details["source"] = "telethon" # تحديد المصدر للخطوات التالية
+            return details
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"فشل جلب معلومات منشور تيليجرام: {e}")
 
     # تحديد إذا كان الرابط لموقع مثل يوتيوب أم رابط مباشر
     # --- تعديل: إضافة t.me/s/ للروابط الخدمية (القنوات العامة) ---
     is_service_url = any(domain in url for domain in [
-        'youtube.com', 'youtu.be', 'facebook.com', 
+        'youtube.com', 'youtu.be', 'facebook.com',
         'twitter.com', 'instagram.com', 'tiktok.com',
         't.me/s/' # القنوات العامة فقط
     ])
