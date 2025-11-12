@@ -406,12 +406,18 @@ async def stream_download(url: str, filename: str, source: str, format_id: str =
             """
             مولّد (Generator) غير متزامن يقوم بجلب أجزاء الملف من تيليجرام وبثها.
             """
+            # --- تعديل جذري: قراءة جلسة الاتصال من رابط التحميل (URL parameter) ---
+            # الواجهة الأمامية ترسل الجلسة كـ 'authorization=Bearer ...' في الرابط.
+            # هذا يحل مشكلة فشل التحميل على المتصفحات (خاصة على الهاتف) التي قد لا ترسل
+            # ترويسة المصادقة عند إعادة التوجيه.
             if not authorization or not authorization.startswith("Bearer "):
-                # لا يمكننا رفع استثناء هنا، لذا سنوقف البث
-                print("Authorization header missing for Telegram stream.")
+                print("Authorization parameter missing for Telegram stream.")
                 return
             session_string = authorization.split("Bearer ")[1]
-            manager = await get_telegram_manager(authorization)
+            
+            # إنشاء مدير تيليجرام يدوياً باستخدام الجلسة من الرابط
+            tg_settings = SETTINGS.get("telegram", {})
+            manager = TelegramManager(int(tg_settings.get("api_id", "20961519")), tg_settings.get("api_hash", "0d57a9b5a975c6770f0797b9ea75ebe6"), session_string)
             try:
                 async with await manager.get_client() as client:
                     # --- تعديل جذري: تحليل رابط telethon:// الداخلي ---
